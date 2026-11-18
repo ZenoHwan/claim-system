@@ -72,12 +72,18 @@ erDiagram
         uuid claim_id PK, FK
         varchar vehicle_registration
         varchar driver_name
-        varchar accident_location
+        varchar address_line1 "accident location"
+        varchar address_line2
+        varchar address_line3
+        varchar postal_code "5 or 6 digits"
         boolean third_party_involved
     }
     property_claim_detail {
         uuid claim_id PK, FK
-        varchar property_address
+        varchar address_line1 "property address"
+        varchar address_line2
+        varchar address_line3
+        varchar postal_code "5 or 6 digits"
         varchar loss_cause "FIRE, WATER, THEFT, STORM, OTHER"
     }
     claim_status_history {

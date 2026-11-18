@@ -1,5 +1,6 @@
 package com.claims.service.claim;
 
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
@@ -14,7 +15,8 @@ class MotorClaimDetail {
 
     String vehicleRegistration;
     String driverName;
-    String accidentLocation;
+    @Embedded
+    Address accidentLocation;
     boolean thirdPartyInvolved;
 
     protected MotorClaimDetail() {}

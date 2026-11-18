@@ -25,8 +25,8 @@ record SubmitClaimRequest(
     record Motor(
             @NotBlank @Size(max = 20) String vehicleRegistration,
             @NotBlank @Size(max = 200) String driverName,
-            @NotBlank @Size(max = 300) String accidentLocation,
+            @NotNull @Valid Address accidentLocation,
             boolean thirdPartyInvolved) {}
 
-    record Property(@NotBlank @Size(max = 300) String propertyAddress, @NotNull PropertyClaimDetail.LossCause lossCause) {}
+    record Property(@NotNull @Valid Address propertyAddress, @NotNull PropertyClaimDetail.LossCause lossCause) {}
 }

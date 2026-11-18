@@ -118,7 +118,10 @@ public abstract class IntegrationTest {
         claim.put("motor", Map.of(
                 "vehicleRegistration", "WXY 1234",
                 "driverName", "Aisha Rahman",
-                "accidentLocation", "Jalan Ampang, Kuala Lumpur",
+                "accidentLocation", Map.of(
+                        "addressLine1", "Jalan Ampang",
+                        "addressLine2", "Kuala Lumpur",
+                        "postalCode", "50450"),
                 "thirdPartyInvolved", true));
         return claim;
     }
@@ -129,7 +132,13 @@ public abstract class IntegrationTest {
         claim.put("incidentDate", LocalDate.now().minusDays(3).toString());
         claim.put("incidentDescription", "Burst pipe flooded the kitchen");
         claim.put("claimedAmount", amount);
-        claim.put("property", Map.of("propertyAddress", "12 Jalan Bukit, Petaling Jaya", "lossCause", "WATER"));
+        claim.put("property", Map.of(
+                "propertyAddress", Map.of(
+                        "addressLine1", "12 Jalan Bukit",
+                        "addressLine2", "Taman Bukit Indah",
+                        "addressLine3", "Petaling Jaya",
+                        "postalCode", "46000"),
+                "lossCause", "WATER"));
         return claim;
     }
 

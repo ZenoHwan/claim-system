@@ -35,7 +35,9 @@ class ClaimLifecycleIntegrationTest extends IntegrationTest {
                     .andExpect(jsonPath("$.lineOfBusiness").value("MOTOR"))
                     .andExpect(jsonPath("$.marketCode").value("MY"))
                     .andExpect(jsonPath("$.currency").value("MYR"))
-                    .andExpect(jsonPath("$.motor.vehicleRegistration").value("WXY 1234"));
+                    .andExpect(jsonPath("$.motor.vehicleRegistration").value("WXY 1234"))
+                    .andExpect(jsonPath("$.motor.accidentLocation.addressLine1").value("Jalan Ampang"))
+                    .andExpect(jsonPath("$.motor.accidentLocation.postalCode").value("50450"));
         }
 
         @Test
@@ -43,7 +45,24 @@ class ClaimLifecycleIntegrationTest extends IntegrationTest {
             postJson("/api/claims", bearer(AISHA), propertyClaim(freshPolicy(AISHA_PROPERTY), "42000.00"))
                     .andExpect(status().isCreated())
                     .andExpect(jsonPath("$.lineOfBusiness").value("PROPERTY"))
-                    .andExpect(jsonPath("$.property.lossCause").value("WATER"));
+                    .andExpect(jsonPath("$.property.lossCause").value("WATER"))
+                    .andExpect(jsonPath("$.property.propertyAddress.addressLine3").value("Petaling Jaya"))
+                    .andExpect(jsonPath("$.property.propertyAddress.postalCode").value("46000"));
+        }
+
+        @Test
+        void anAddressNeedsAFirstLineAndAFiveOrSixDigitPostalCode() throws Exception {
+            Map<String, Object> claim = motorClaim(freshPolicy(AISHA_MOTOR), "100.00");
+            claim.put("motor", Map.of(
+                    "vehicleRegistration", "WXY 1234",
+                    "driverName", "Aisha Rahman",
+                    "accidentLocation", Map.of("addressLine1", " ", "postalCode", "ABC12"),
+                    "thirdPartyInvolved", false));
+
+            postJson("/api/claims", bearer(AISHA), claim)
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.errors[?(@.field=='motor.accidentLocation.addressLine1')]").exists())
+                    .andExpect(jsonPath("$.errors[?(@.field=='motor.accidentLocation.postalCode')]").exists());
         }
 
         @Test

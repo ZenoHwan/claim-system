@@ -28,9 +28,9 @@ public class ClaimViews {
 
     public record HistoryEntry(ClaimStatus fromStatus, ClaimStatus toStatus, String actorName, String reason, Instant changedAt) {}
 
-    public record MotorView(String vehicleRegistration, String driverName, String accidentLocation, boolean thirdPartyInvolved) {}
+    public record MotorView(String vehicleRegistration, String driverName, Address accidentLocation, boolean thirdPartyInvolved) {}
 
-    public record PropertyView(String propertyAddress, PropertyClaimDetail.LossCause lossCause) {}
+    public record PropertyView(Address propertyAddress, PropertyClaimDetail.LossCause lossCause) {}
 
     public record AssessmentView(String findings, BigDecimal recommendedAmount, String assessedByName, Instant assessedAt) {}
 

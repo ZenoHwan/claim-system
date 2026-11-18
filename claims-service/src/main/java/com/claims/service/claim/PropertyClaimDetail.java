@@ -1,5 +1,6 @@
 package com.claims.service.claim;
 
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -22,7 +23,8 @@ class PropertyClaimDetail {
     @Id
     UUID claimId;
 
-    String propertyAddress;
+    @Embedded
+    Address propertyAddress;
 
     @Enumerated(EnumType.STRING)
     LossCause lossCause;
