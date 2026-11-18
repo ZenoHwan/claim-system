@@ -1,0 +1,25 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: claims-service
+  datasource:
+    url: jdbc:postgresql://localhost:5433/claims_db
+    username: claims
+    password: claims
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    # db/seed holds local demo data only; drop it from this list for a real environment.
+    locations: classpath:db/migration,classpath:db/seed
+  kafka:
+    bootstrap-servers: localhost:9092
+
+claims:
+  jwt:
+    # Shared signing key, verified by every service. Dev default only: set CLAIMS_JWT_SECRET anywhere real.
+    secret: ${CLAIMS_JWT_SECRET:dev-only-secret-change-me-0123456789abcdef}
+    ttl: 8h

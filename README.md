@@ -44,3 +44,17 @@ and outstanding exposure.
    ```
 
 To wipe local data: `docker compose down -v`.
+
+## Seeded accounts (local demo data only)
+
+Every account uses the password `Passw0rd!`.
+
+| Email | Role | Market | Sign in at |
+|---|---|---|---|
+| `aisha@claims.test` | Claimant (motor + property policy) | MY | `/login` |
+| `daniel@claims.test` | Claimant (motor policy) | MY | `/login` |
+| `siti@claims.test` | Claimant (motor policy) | SG | `/login` |
+| `officer1.my@claims.test` | Officer | MY | `/admin/login` |
+| `officer2.my@claims.test` | Officer | MY | `/admin/login` |
+| `officer.sg@claims.test` | Officer | SG | `/admin/login` |
+| `manager.my@claims.test` | Manager | MY | `/admin/login` |

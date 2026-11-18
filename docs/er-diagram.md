@@ -26,7 +26,7 @@ erDiagram
     team {
         uuid id PK
         varchar name
-        char market_code "SG, MY, HK, AU, TH, ID"
+        varchar market_code "SG, MY, HK, AU, TH, ID"
     }
     app_user {
         uuid id PK
@@ -34,7 +34,7 @@ erDiagram
         varchar full_name
         varchar password_hash
         varchar role "CLAIMANT, OFFICER, MANAGER"
-        char market_code
+        varchar market_code
         uuid team_id FK "null for claimants"
     }
     policy {
@@ -42,8 +42,8 @@ erDiagram
         varchar policy_number UK
         uuid holder_id FK
         varchar line_of_business "MOTOR, PROPERTY"
-        char market_code
-        char currency
+        varchar market_code
+        varchar currency
         numeric sum_insured
         date effective_from
         date effective_to
@@ -55,8 +55,8 @@ erDiagram
         uuid claimant_id FK
         uuid assigned_officer_id FK "null until picked up"
         varchar line_of_business "copied from policy"
-        char market_code "copied from policy"
-        char currency "copied from policy"
+        varchar market_code "copied from policy"
+        varchar currency "copied from policy"
         varchar status
         date incident_date
         text incident_description
@@ -138,7 +138,7 @@ erDiagram
         varchar payee_name
         varchar method "BANK_TRANSFER, CHEQUE"
         numeric amount
-        char currency
+        varchar currency
         varchar status "REQUESTED, PAID"
         varchar reference
         timestamptz requested_at
@@ -164,14 +164,14 @@ erDiagram
     claim_summary {
         uuid claim_id PK
         varchar claim_number
-        char market_code
+        varchar market_code
         varchar line_of_business
         varchar status
         uuid officer_id "null while unassigned"
         varchar officer_name
         uuid team_id
         numeric current_reserve "0 once settled or rejected"
-        char currency
+        varchar currency
         bigint claim_version "ignore events older than this"
         timestamptz submitted_at
         timestamptz decided_at
