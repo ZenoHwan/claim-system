@@ -22,6 +22,11 @@ import { Session } from '../core/session';
   template: `
     <main class="door" [class.staff]="staff()">
       <mat-card appearance="outlined">
+        <div class="brand">
+          <img src="logo.svg" alt="Claims" height="40" />
+          <!-- says at a glance which door this is -->
+          <span class="portal" [class.staff]="staff()">{{ staff() ? 'Staff' : 'Customer' }}</span>
+        </div>
         <mat-card-header>
           <mat-card-title>{{ staff() ? 'Claims Admin' : 'Claims Portal' }}</mat-card-title>
           <mat-card-subtitle>{{
@@ -71,6 +76,26 @@ import { Session } from '../core/session';
     }
     .door.staff {
       background: var(--mat-sys-surface-container-highest);
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 16px 16px 4px;
+    }
+    .portal {
+      padding: 4px 12px;
+      border-radius: 999px;
+      font: var(--mat-sys-label-large);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      background: var(--mat-sys-primary-container);
+      color: var(--mat-sys-on-primary-container);
+    }
+    .portal.staff {
+      background: var(--mat-sys-inverse-surface);
+      color: var(--mat-sys-inverse-on-surface);
     }
     mat-card {
       width: min(420px, 100%);

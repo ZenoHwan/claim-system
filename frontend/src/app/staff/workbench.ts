@@ -50,14 +50,15 @@ import { StatusChip } from '../shared/status-chip';
           <p class="error-text" role="alert">{{ error() }}</p>
         }
 
-        @if (!mine()) {
-          <p class="muted">
-            {{
-              c.assignedOfficerName
-                ? 'Assigned to ' + c.assignedOfficerName + '. Read only.'
-                : 'Not picked up yet. Pick it up from the queue to work on it.'
-            }}
-          </p>
+        @if (!c.assignedOfficerId) {
+          <div class="row">
+            <p class="muted">Not picked up yet. You can read it here, or take it on.</p>
+            <button matButton="filled" type="button" [disabled]="busy()" (click)="pickUp()">
+              Pick up
+            </button>
+          </div>
+        } @else if (!mine()) {
+          <p class="muted">Assigned to {{ c.assignedOfficerName }}. Read only.</p>
         } @else if (c.status === 'UNDER_REVIEW') {
           <div class="actions">
             <mat-card appearance="outlined">
@@ -273,6 +274,11 @@ export class Workbench {
     if (claim.status === 'ASSESSED' && this.approval.pristine) {
       this.approval.setValue({ approvedAmount: claim.assessment?.recommendedAmount ?? null });
     }
+  }
+
+  /** If a colleague got there first the server answers 409; the message is shown and the claim reloads read-only. */
+  protected pickUp() {
+    this.run(this.api.pickUp(this.id()));
   }
 
   protected requestInformation() {

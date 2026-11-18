@@ -24,7 +24,7 @@ import { ClaimTable } from '../shared/claim-table';
       <app-claim-table
         [claims]="claims()"
         [columns]="columns"
-        [pickable]="true"
+        linkBase="/admin/claims"
         (pickUp)="pickUp($event)"
         emptyText="Nothing waiting to be picked up."
       />

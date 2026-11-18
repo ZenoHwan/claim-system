@@ -19,11 +19,7 @@ import { StatusChip } from './status-chip';
           <ng-container matColumnDef="claimNumber">
             <th mat-header-cell *matHeaderCellDef>Claim no.</th>
             <td mat-cell *matCellDef="let claim">
-              @if (pickable()) {
-                {{ claim.claimNumber }}
-              } @else {
-                <a [routerLink]="[linkBase(), claim.id]">{{ claim.claimNumber }}</a>
-              }
+              <a [routerLink]="[linkBase(), claim.id]">{{ claim.claimNumber }}</a>
             </td>
           </ng-container>
           <ng-container matColumnDef="line">
@@ -80,8 +76,6 @@ export class ClaimTable {
   readonly columns = input.required<string[]>();
   /** Route prefix for the claim link, e.g. '/claims' or '/admin/claims'. */
   readonly linkBase = input('/claims');
-  /** Queue mode: the claim is opened by picking it up, not by a link. */
-  readonly pickable = input(false);
   readonly emptyText = input('Nothing here yet.');
   readonly pickUp = output<ClaimListItem>();
 }

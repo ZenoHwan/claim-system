@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 48" role="img" aria-label="Claims">
+  <!-- Placeholder brand mark. Replace this file with the company logo; the login page shows whatever is here. -->
+  <path d="M24 4 8 10v12c0 10 6.8 18.6 16 22 9.200-3.400 16-12 16-22V10L24 4Z" fill="#0b57d0"/>
+  <path d="m17 24 5 5 9-10" fill="none" stroke="#fff" stroke-width="3.500" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="52" y="33" font-family="Roboto, Arial, sans-serif" font-size="26" font-weight="700" letter-spacing="3" fill="#1b1b1f">CLAIMS</text>
+</svg>
