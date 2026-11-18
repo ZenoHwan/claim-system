@@ -23,10 +23,10 @@ import { Session } from '../core/session';
     <main class="door" [class.staff]="staff()">
       <mat-card appearance="outlined">
         <div class="brand">
-          <!-- Shows a local, uncommitted brand logo if one is present; otherwise the placeholder. -->
+          <!-- Falls back to the placeholder mark if the brand logo file is removed. -->
           <img
             class="logo"
-            src="brand-logo.local.webp"
+            src="brand-logo.webp"
             alt="Company logo"
             (error)="$any($event.target).src = 'logo.svg'"
           />
