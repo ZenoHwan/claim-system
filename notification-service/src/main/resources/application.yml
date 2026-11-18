@@ -1,0 +1,26 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: notification-service
+  datasource:
+    url: jdbc:postgresql://localhost:5433/notification_db
+    username: claims
+    password: claims
+  mvc:
+    problemdetails:
+      enabled: true
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: notification-service
+      auto-offset-reset: earliest
+
+claims:
+  jwt:
+    # Shared signing key, dev default only. Override with CLAIMS_JWT_SECRET.
+    secret: dev-only-secret-change-me-0123456789abcdef
+  kafka:
+    # First wait before retrying a failed event; doubles each attempt, then the event is dead-lettered.
+    retry-interval: 1s
