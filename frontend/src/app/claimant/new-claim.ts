@@ -68,7 +68,11 @@ import { applyFieldErrors, problemMessage } from '../core/http';
           <div class="stack step" formGroupName="incident">
             <mat-form-field>
               <mat-label>Date of incident</mat-label>
-              <input matInput type="date" formControlName="incidentDate" [max]="today" />
+              <input matInput #incidentDate type="date" formControlName="incidentDate" [max]="today" />
+              <!-- ponytail: opens the browser's own calendar; no date library or adapter needed -->
+              <button matIconButton matSuffix type="button" aria-label="Open calendar" (click)="incidentDate.showPicker()">
+                <mat-icon aria-hidden="true">calendar_today</mat-icon>
+              </button>
               @if (form.controls.incident.controls.incidentDate.errors?.['server']; as message) {
                 <mat-error>{{ message }}</mat-error>
               }
