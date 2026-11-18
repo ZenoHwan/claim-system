@@ -23,7 +23,13 @@ import { Session } from '../core/session';
     <main class="door" [class.staff]="staff()">
       <mat-card appearance="outlined">
         <div class="brand">
-          <img src="logo.svg" alt="Claims" height="40" />
+          <!-- Shows a local, uncommitted brand logo if one is present; otherwise the placeholder. -->
+          <img
+            class="logo"
+            src="brand-logo.local.webp"
+            alt="Company logo"
+            (error)="$any($event.target).src = 'logo.svg'"
+          />
           <!-- says at a glance which door this is -->
           <span class="portal" [class.staff]="staff()">{{ staff() ? 'Staff' : 'Customer' }}</span>
         </div>
@@ -83,6 +89,13 @@ import { Session } from '../core/session';
       justify-content: space-between;
       gap: 12px;
       padding: 16px 16px 4px;
+    }
+    .logo {
+      width: 170px;
+      height: 40px;
+      /* crop the white margin of a wide wordmark, and let its white background take the card colour */
+      object-fit: cover;
+      mix-blend-mode: multiply;
     }
     .portal {
       padding: 4px 12px;

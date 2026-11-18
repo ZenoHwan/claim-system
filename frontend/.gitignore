@@ -42,3 +42,6 @@ __screenshots__/
 # System files
 .DS_Store
 Thumbs.db
+
+# a real company logo dropped in locally for a demo; never committed
+/public/brand-logo.local.*
