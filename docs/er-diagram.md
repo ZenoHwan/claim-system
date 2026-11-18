@@ -61,9 +61,12 @@ erDiagram
         date incident_date
         text incident_description
         numeric claimed_amount
+        numeric current_reserve "copy of the newest reserve row"
         bigint version "optimistic lock"
         timestamptz submitted_at
         timestamptz updated_at
+        timestamptz decided_at
+        timestamptz settled_at
     }
     motor_claim_detail {
         uuid claim_id PK, FK

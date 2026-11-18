@@ -1,16 +1,24 @@
 package com.claims.service;
 
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import java.time.LocalDate;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 import org.testcontainers.postgresql.PostgreSQLContainer;
@@ -57,10 +65,10 @@ public abstract class IntegrationTest {
         mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
     }
 
-    protected org.springframework.test.web.servlet.ResultActions login(String email, String password, String door) throws Exception {
+    protected ResultActions login(String email, String password, String door) throws Exception {
         return mvc.perform(post("/api/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(json.writeValueAsString(java.util.Map.of("email", email, "password", password, "door", door))));
+                .content(json.writeValueAsString(Map.of("email", email, "password", password, "door", door))));
     }
 
     /** "Bearer ..." header value for a seeded user, signing in through the door that matches the account. */
@@ -70,7 +78,89 @@ public abstract class IntegrationTest {
         return "Bearer " + json.readTree(body).get("token").asString();
     }
 
-    protected JsonNode body(org.springframework.test.web.servlet.ResultActions result) throws Exception {
+    public static final String AISHA_MOTOR = "40000000-0000-0000-0000-000000000001";
+    public static final String AISHA_PROPERTY = "40000000-0000-0000-0000-000000000002";
+    public static final String DANIEL_MOTOR = "40000000-0000-0000-0000-000000000003";
+    public static final String SITI_SG_MOTOR = "40000000-0000-0000-0000-000000000004";
+
+    protected ResultActions postJson(String url, String auth, Object requestBody) throws Exception {
+        return mvc.perform(post(url)
+                .header(HttpHeaders.AUTHORIZATION, auth)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json.writeValueAsString(requestBody)));
+    }
+
+    protected ResultActions getAs(String url, String auth) throws Exception {
+        return mvc.perform(get(url).header(HttpHeaders.AUTHORIZATION, auth));
+    }
+
+    protected Map<String, Object> motorClaim(String policyId, String amount) {
+        Map<String, Object> claim = new HashMap<>();
+        claim.put("policyId", policyId);
+        claim.put("incidentDate", LocalDate.now().minusDays(3).toString());
+        claim.put("incidentDescription", "Rear-ended at a traffic light");
+        claim.put("claimedAmount", amount);
+        claim.put("motor", Map.of(
+                "vehicleRegistration", "WXY 1234",
+                "driverName", "Aisha Rahman",
+                "accidentLocation", "Jalan Ampang, Kuala Lumpur",
+                "thirdPartyInvolved", true));
+        return claim;
+    }
+
+    protected Map<String, Object> propertyClaim(String policyId, String amount) {
+        Map<String, Object> claim = new HashMap<>();
+        claim.put("policyId", policyId);
+        claim.put("incidentDate", LocalDate.now().minusDays(3).toString());
+        claim.put("incidentDescription", "Burst pipe flooded the kitchen");
+        claim.put("claimedAmount", amount);
+        claim.put("property", Map.of("propertyAddress", "12 Jalan Bukit, Petaling Jaya", "lossCause", "WATER"));
+        return claim;
+    }
+
+    /** Submits a claim and returns its id. */
+    protected String submit(String claimantEmail, Map<String, Object> claim) throws Exception {
+        return body(postJson("/api/claims", bearer(claimantEmail), claim).andExpect(status().isCreated()))
+                .get("id").asString();
+    }
+
+    protected String submitMotorClaim(String amount) throws Exception {
+        return submit(AISHA, motorClaim(AISHA_MOTOR, amount));
+    }
+
+    protected ResultActions pickUp(String staffEmail, String claimId) throws Exception {
+        return postJson("/api/staff/claims/" + claimId + "/assign", bearer(staffEmail), Map.of());
+    }
+
+    protected ResultActions assess(String staffEmail, String claimId, String recommendedAmount) throws Exception {
+        return postJson("/api/staff/claims/" + claimId + "/assessment", bearer(staffEmail),
+                Map.of("findings", "Damage consistent with the report", "recommendedAmount", recommendedAmount));
+    }
+
+    protected ResultActions approve(String staffEmail, String claimId, String amount) throws Exception {
+        return postJson("/api/staff/claims/" + claimId + "/decision", bearer(staffEmail),
+                Map.of("outcome", "APPROVED", "approvedAmount", amount));
+    }
+
+    protected ResultActions reject(String staffEmail, String claimId, String reason) throws Exception {
+        return postJson("/api/staff/claims/" + claimId + "/decision", bearer(staffEmail),
+                Map.of("outcome", "REJECTED", "reason", reason));
+    }
+
+    /** A claim picked up and assessed by OFFICER_1, ready for a decision. */
+    protected String assessedClaim(String claimed, String recommended) throws Exception {
+        String id = submitMotorClaim(claimed);
+        pickUp(OFFICER_1, id).andExpect(status().isOk());
+        assess(OFFICER_1, id, recommended).andExpect(status().isOk());
+        return id;
+    }
+
+    protected int count(String table, String claimId) {
+        String column = table.equals("outbox_event") ? "aggregate_id" : "claim_id";
+        return jdbc.queryForObject("select count(*) from " + table + " where " + column + " = ?::uuid", Integer.class, claimId);
+    }
+
+    protected JsonNode body(ResultActions result) throws Exception {
         return json.readTree(result.andReturn().getResponse().getContentAsString());
     }
 }

@@ -1,0 +1,54 @@
+package com.claims.service.claim;
+
+import com.claims.service.common.ApiException;
+import com.claims.service.identity.CurrentUser;
+import jakarta.validation.Valid;
+import java.util.List;
+import java.util.UUID;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@RequestMapping("/api/claims")
+class ClaimController {
+
+    private final ClaimService service;
+    private final ClaimViews views;
+
+    ClaimController(ClaimService service, ClaimViews views) {
+        this.service = service;
+        this.views = views;
+    }
+
+    /** Report an incident. Claimants only (enforced in SecurityConfig). */
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    ClaimViews.Detail submit(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody SubmitClaimRequest request) {
+        CurrentUser claimant = CurrentUser.from(jwt);
+        return views.detail(claimant, service.submit(claimant, request));
+    }
+
+    /** The signed-in claimant's own claims. Staff use /api/staff/claims instead. */
+    @GetMapping
+    List<ClaimViews.ListItem> myClaims(@AuthenticationPrincipal Jwt jwt) {
+        CurrentUser user = CurrentUser.from(jwt);
+        if (user.isStaff()) {
+            throw ApiException.forbidden("Staff list claims through /api/staff/claims");
+        }
+        return views.submittedBy(user);
+    }
+
+    /** One claim, shaped for the caller: a claimant sees their own, staff see their market's. */
+    @GetMapping("/{claimId}")
+    ClaimViews.Detail claim(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID claimId) {
+        return views.detail(CurrentUser.from(jwt), claimId);
+    }
+}

@@ -1,0 +1,63 @@
+package com.claims.service.claim;
+
+import com.claims.service.identity.CurrentUser;
+import jakarta.validation.Valid;
+import java.util.List;
+import java.util.UUID;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+/** Claim handling for officers and managers (role enforced in SecurityConfig). */
+@RestController
+@RequestMapping("/api/staff/claims")
+class StaffClaimController {
+
+    private final ClaimService service;
+    private final ClaimViews views;
+
+    StaffClaimController(ClaimService service, ClaimViews views) {
+        this.service = service;
+        this.views = views;
+    }
+
+    @GetMapping("/unassigned")
+    List<ClaimViews.ListItem> unassigned(@AuthenticationPrincipal Jwt jwt) {
+        return views.unassignedIn(CurrentUser.from(jwt).market());
+    }
+
+    @GetMapping("/mine")
+    List<ClaimViews.ListItem> mine(@AuthenticationPrincipal Jwt jwt) {
+        return views.assignedTo(CurrentUser.from(jwt));
+    }
+
+    @PostMapping("/{claimId}/assign")
+    ClaimViews.Detail pickUp(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID claimId) {
+        CurrentUser staff = CurrentUser.from(jwt);
+        service.pickUp(staff, claimId);
+        return views.detail(staff, claimId);
+    }
+
+    @PostMapping("/{claimId}/assessment")
+    ClaimViews.Detail assess(
+            @AuthenticationPrincipal Jwt jwt, @PathVariable UUID claimId,
+            @Valid @RequestBody ClaimService.AssessmentRequest request) {
+        CurrentUser staff = CurrentUser.from(jwt);
+        service.assess(staff, claimId, request);
+        return views.detail(staff, claimId);
+    }
+
+    @PostMapping("/{claimId}/decision")
+    ClaimViews.Detail decide(
+            @AuthenticationPrincipal Jwt jwt, @PathVariable UUID claimId,
+            @Valid @RequestBody ClaimService.DecisionRequest request) {
+        CurrentUser staff = CurrentUser.from(jwt);
+        service.decide(staff, claimId, request);
+        return views.detail(staff, claimId);
+    }
+}
