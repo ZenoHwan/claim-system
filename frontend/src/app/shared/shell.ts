@@ -37,9 +37,20 @@ import { Session } from '../core/session';
             <a matButton routerLink="/admin/dashboard" routerLinkActive="active">Dashboard</a>
           }
         </nav>
+      } @else {
+        <nav>
+          <a matButton routerLink="/claims" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">My claims</a>
+          <a matButton routerLink="/claims/policies" routerLinkActive="active">My policies</a>
+        </nav>
       }
       <span class="spacer"></span>
-      <button matIconButton [matMenuTriggerFor]="inbox" aria-label="Notifications">
+      <button
+        matIconButton
+        [matMenuTriggerFor]="inbox"
+        (menuOpened)="notifications.markAllSeen()"
+        (menuClosed)="notifications.clearHighlight()"
+        aria-label="Notifications"
+      >
         <mat-icon
           [matBadge]="notifications.unreadCount()"
           [matBadgeHidden]="notifications.unreadCount() === 0"

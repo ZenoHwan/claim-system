@@ -237,6 +237,12 @@ export interface components {
             method: "BANK_TRANSFER" | "CHEQUE";
             reference: string;
         };
+        Address: {
+            addressLine1: string;
+            addressLine2?: string;
+            addressLine3?: string;
+            postalCode: string;
+        };
         AssessmentView: {
             findings?: string;
             recommendedAmount?: number;
@@ -332,7 +338,7 @@ export interface components {
         MotorView: {
             vehicleRegistration?: string;
             driverName?: string;
-            accidentLocation?: string;
+            accidentLocation?: components["schemas"]["Address"];
             thirdPartyInvolved?: boolean;
         };
         PaymentView: {
@@ -350,7 +356,7 @@ export interface components {
             paidAt?: string;
         };
         PropertyView: {
-            propertyAddress?: string;
+            propertyAddress?: components["schemas"]["Address"];
             /** @enum {string} */
             lossCause?: "FIRE" | "WATER" | "THEFT" | "STORM" | "OTHER";
         };
@@ -370,11 +376,11 @@ export interface components {
         Motor: {
             vehicleRegistration: string;
             driverName: string;
-            accidentLocation: string;
+            accidentLocation: components["schemas"]["Address"];
             thirdPartyInvolved?: boolean;
         };
         Property: {
-            propertyAddress: string;
+            propertyAddress: components["schemas"]["Address"];
             /** @enum {string} */
             lossCause: "FIRE" | "WATER" | "THEFT" | "STORM" | "OTHER";
         };

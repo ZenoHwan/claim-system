@@ -1,8 +1,8 @@
-import { CurrencyPipe, DatePipe } from '@angular/common';
+import { CurrencyPipe, DatePipe, NgTemplateOutlet } from '@angular/common';
 import { Component, afterNextRender, computed, inject, signal, viewChild } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MAT_DATE_LOCALE, provideNativeDateAdapter } from '@angular/material/core';
@@ -25,6 +25,7 @@ import { applyFieldErrors, problemMessage } from '../core/http';
   imports: [
     CurrencyPipe,
     DatePipe,
+    NgTemplateOutlet,
     ReactiveFormsModule,
     RouterLink,
     MatButtonModule,
@@ -133,20 +134,20 @@ import { applyFieldErrors, problemMessage } from '../core/http';
                 <mat-label>Driver name</mat-label>
                 <input matInput formControlName="driverName" />
               </mat-form-field>
-              <mat-form-field>
-                <mat-label>Accident location</mat-label>
-                <input matInput formControlName="accidentLocation" />
-              </mat-form-field>
+              <p class="label">Accident location</p>
+              <ng-container
+                *ngTemplateOutlet="addressFields; context: { $implicit: form.controls.motor.controls.accidentLocation }"
+              />
               <mat-checkbox formControlName="thirdPartyInvolved"
                 >A third party was involved</mat-checkbox
               >
             </div>
           } @else {
             <div class="stack step" formGroupName="property">
-              <mat-form-field>
-                <mat-label>Property address</mat-label>
-                <input matInput formControlName="propertyAddress" />
-              </mat-form-field>
+              <p class="label">Property address</p>
+              <ng-container
+                *ngTemplateOutlet="addressFields; context: { $implicit: form.controls.property.controls.propertyAddress }"
+              />
               <mat-form-field>
                 <mat-label>Cause of loss</mat-label>
                 <mat-select formControlName="lossCause">
@@ -236,9 +237,40 @@ import { applyFieldErrors, problemMessage } from '../core/http';
           </div>
         </mat-step>
       </mat-stepper>
+
+      <ng-template #addressFields let-group>
+        <div class="stack" [formGroup]="group">
+          <mat-form-field>
+            <mat-label>Address line 1</mat-label>
+            <input matInput formControlName="addressLine1" />
+          </mat-form-field>
+          <mat-form-field>
+            <mat-label>Address line 2 (optional)</mat-label>
+            <input matInput formControlName="addressLine2" />
+          </mat-form-field>
+          <mat-form-field>
+            <mat-label>Address line 3 (optional)</mat-label>
+            <input matInput formControlName="addressLine3" />
+          </mat-form-field>
+          <mat-form-field class="postal">
+            <mat-label>Postal code</mat-label>
+            <input matInput formControlName="postalCode" inputmode="numeric" maxlength="6" />
+            @if (group.controls.postalCode.hasError('pattern')) {
+              <mat-error>5 or 6 digits</mat-error>
+            }
+          </mat-form-field>
+        </div>
+      </ng-template>
     </main>
   `,
   styles: `
+    .label {
+      margin: 8px 0 0;
+      font: var(--mat-sys-title-small);
+    }
+    .postal {
+      max-width: 160px;
+    }
     .step {
       max-width: 560px;
       padding-top: 16px;
@@ -274,14 +306,24 @@ export class NewClaim {
     motor: this.fb.group({
       vehicleRegistration: ['', Validators.required],
       driverName: ['', Validators.required],
-      accidentLocation: ['', Validators.required],
+      accidentLocation: this.address(),
       thirdPartyInvolved: [false],
     }),
     property: this.fb.group({
-      propertyAddress: ['', Validators.required],
+      propertyAddress: this.address(),
       lossCause: ['' as LossCause | '', Validators.required],
     }),
   });
+
+  /** Same rules as the server: line 1 and a 5 (MY) or 6 (SG) digit postal code are required. */
+  private address() {
+    return this.fb.group({
+      addressLine1: ['', Validators.required],
+      addressLine2: [''],
+      addressLine3: [''],
+      postalCode: ['', [Validators.required, Validators.pattern(/^\d{5,6}$/)]],
+    });
+  }
 
   protected readonly policies = signal<Policy[]>([]);
   private readonly policyId = toSignal(this.form.controls.policyId.valueChanges, {
@@ -302,6 +344,11 @@ export class NewClaim {
   constructor() {
     this.api.policies().subscribe((policies) => this.policies.set(policies));
     this.restoreDraft();
+    // "Make a claim" on My policies links here with ?policy=<id>; an explicit choice beats the draft's.
+    const linked = inject(ActivatedRoute).snapshot.queryParamMap.get('policy');
+    if (linked) {
+      this.form.controls.policyId.setValue(linked);
+    }
     this.form.valueChanges.subscribe(() => this.saveDraft(this.step));
   }
 

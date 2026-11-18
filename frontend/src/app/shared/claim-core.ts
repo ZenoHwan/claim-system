@@ -53,7 +53,7 @@ import { statusLabel } from './status-chip';
               <dt>Driver</dt>
               <dd>{{ motor.driverName }}</dd>
               <dt>Location</dt>
-              <dd>{{ motor.accidentLocation }}</dd>
+              <dd>{{ addressText(motor.accidentLocation) }}</dd>
               <dt>Third party</dt>
               <dd>{{ motor.thirdPartyInvolved ? 'Yes' : 'No' }}</dd>
             </dl>
@@ -61,7 +61,7 @@ import { statusLabel } from './status-chip';
           @if (c.property; as property) {
             <dl>
               <dt>Property</dt>
-              <dd>{{ property.propertyAddress }}</dd>
+              <dd>{{ addressText(property.propertyAddress) }}</dd>
               <dt>Cause of loss</dt>
               <dd>{{ property.lossCause }}</dd>
             </dl>
@@ -241,6 +241,11 @@ export class ClaimCore {
 
   readonly claim = input.required<ClaimDetail>();
   protected readonly label = statusLabel;
+
+  /** One line for display; claims from before the split have only line 1 and no postal code. */
+  protected addressText(a: { addressLine1?: string; addressLine2?: string; addressLine3?: string; postalCode?: string }) {
+    return [a.addressLine1, a.addressLine2, a.addressLine3, a.postalCode].filter(Boolean).join(', ');
+  }
 
   protected kilobytes(bytes: number) {
     return `${Math.max(1, Math.round(bytes / 1024))} KB`;

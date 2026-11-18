@@ -45,6 +45,20 @@ export class Notifications {
     });
   }
 
+  /** Opening the bell: the badge clears at once, the server records everything as read. */
+  markAllSeen() {
+    if (this.unreadCount() === 0) {
+      return;
+    }
+    this.unreadCount.set(0);
+    this.http.post('/api/notifications/read-all', {}).subscribe();
+  }
+
+  /** Closing the bell: drop the unread highlight, which stays while the menu is open so new items stand out. */
+  clearHighlight() {
+    this.items.update((items) => items.map((i) => (i.read ? i : { ...i, read: true })));
+  }
+
   // fetch, not EventSource: EventSource cannot send the Authorization header.
   private async listen(aborted: AbortSignal) {
     while (!aborted.aborted) {
