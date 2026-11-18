@@ -337,10 +337,9 @@ In rough order of value:
 5. **Rules designed but not built.** Manager sign-off above an authority limit, claimant
    withdrawal, payment as its own service with a bank, several payments per claim, reserves based
    on average claim cost by market and peril, and personalised (vanity) plates.
-6. **Contract.** Avro and a schema registry once another team consumes `claim-events`.
-7. **Frontend.** An accessibility check (axe) inside the Playwright suite, translations for each
+6. **Frontend.** An accessibility check (axe) inside the Playwright suite, translations for each
    market, unit tests for the validators, and an e2e clean-up of its own data.
-8. **An API gateway** in production for TLS, rate limits and one origin; locally nginx does the
+7. **An API gateway** in production for TLS, rate limits and one origin; locally nginx does the
    routing.
 
 ## Tests
