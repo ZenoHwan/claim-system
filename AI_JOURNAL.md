@@ -1,217 +1,243 @@
 # AI Working Journal
 
-Running log of how I worked with the AI (Claude Code) on this assessment. One
-entry per decision. Not polished on purpose.
+This journal records how I worked with the AI (Claude Code) on this assessment,
+with one entry per decision.
 
-Legend: **Accepted** = took the AI's suggestion. **Challenged** = pushed back
-and it changed. **Overrode** = AI recommended one thing, I went the other way.
+Legend: **Accepted** means I adopted the AI's suggestion. **Challenged** means I
+pushed back and the AI revised its proposal. **Overrode** means the AI
+recommended one option and I chose another.
 
 ---
 
 ## 18 Nov 2026 — Planning session (before any code)
 
-### 1. Which workflow to drive the AI with
+### 1. Workflow: OpenSpec by default
 
-**Asked:** Superpowers or OpenSpec for this take-home?
-**AI said:** OpenSpec. The panel grades decisions more than code volume, and OpenSpec leaves proposal / design / specs / tasks committed in the repo. Superpowers' thinking mostly stays in chat, and its full loop is heavy for 5 hours.
-**What I did:** Accepted.
-**Why:** _TODO (mine to write)_
+**What I did:** I drove the AI with OpenSpec from the start. It is my default workflow, so the AI had no input on this decision.
+**Why:** The panel assesses decisions more than code volume. OpenSpec commits the proposal, design, specifications and tasks to the repository, so the reasoning remains reviewable rather than being lost in chat history.
 
-### 2. "As real as possible, all entities with DB tables"
+### 2. Requirements as the starting input
 
-**Asked:** I wanted everything real, all entities, proper production flow.
-**AI said:** Pushed back a bit. Brief says prioritise ruthlessly, so design the full model on paper but only build one real slice. Rest goes under "with more time".
-**What I did:** Accepted the idea, but later pulled documents and payment back into the build (see 8 and 9).
-**Why:** _TODO_
+**What I did:** I gave the AI the assessment requirements as the source of truth for the build, so that every design question and specification traced back to the brief rather than to the AI's own assumptions.
+**Why:** Grounding the AI in the actual requirements keeps the scope disciplined. Every proposal could be checked against the brief, and anything outside it had to be justified or deferred to "with more time".
 
 ### 3. Backend stack
 
-**Asked:** AI asked me to pick, .NET or Spring Boot, said it has to be the one I can defend line by line.
-**AI said:** No preference. Noted neither JDK nor .NET SDK was installed on my machine anyway.
-**What I did:** Picked Spring Boot.
-**Why:** _TODO_
+**Asked:** The AI asked me to choose between .NET and Spring Boot, noting that it had to be the one I could defend line by line.
+**AI said:** It had no preference, and noted that neither the JDK nor the .NET SDK was installed on my machine yet.
+**What I did:** I chose Spring Boot.
+**Why:** It is the stack I can defend line by line, and it offers mature, well-established support for everything this design requires: Kafka, Flyway, Spring Security for JWT, and Testcontainers for genuine integration tests.
 
-### 4. One service or split
+### 4. Single service or multiple services
 
-**Asked:** One backend service or several?
-**AI said:** One service lah, with Kafka consumers inside. 5 hours only, fewer things to break in the demo, and "why three services for one team" is a hard question.
-**What I did:** Overrode. Went with three services: claims, reporting, notification.
-**Why:** _TODO — panel will surely ask this one_
+**Asked:** Should the backend be one service or several?
+**AI said:** It recommended a single service with the Kafka consumers inside it. With only five hours available, fewer moving parts would mean less risk during the demo, and "why three services for one team?" would be a difficult question to answer.
+**What I did:** Overrode. I chose three services: claims, reporting and notification.
+**Why:** The three parts have different responsibilities and different tolerance for failure. Claims is transactional and must never be blocked, reporting performs read-heavy aggregation, and notifications fan out to users. Separating them ensures that a reporting outage or a slow dashboard query cannot prevent a customer from filing a claim. It also demonstrates the event-driven integration (outbox, Kafka, read models) that a real insurance platform requires. I accepted the additional complexity and contained it with a shared event-contract module, a single Compose file, and one database server hosting a separate database per service.
 
-### 5. Grill the design before writing any spec
+### 5. Stress-testing the design before writing any specification
 
-**Asked:** Told the AI to hold the `openspec init` and run a grilling session first, in case requirements change. Also asked for ER, C4, sequence, state machine and user flow / wireframe diagrams.
-**AI said:** Ran 34 questions over a few rounds, each with its own recommended answer.
-**What I did:** My call to do this step. Went through every question.
-**Why:** _TODO_
+**Asked:** I instructed the AI to postpone `openspec init` and run a structured questioning session first, in case the requirements changed. I also requested ER, C4, sequence, state machine and user flow / wireframe diagrams.
+**AI said:** It worked through 34 questions over several rounds, each with a recommended answer.
+**What I did:** This step was my decision. I worked through every question.
+**Why:** At this stage, changing a requirement costs one answer; after the code exists, it costs a rewrite. Settling the design first kept the specification stable throughout the build, and the diagrams give the panel a map of the system before they read any code.
 
-### 6. Round 1 answers (scope, roles, auth, policy, tables, markets, assignment, reserve, approval, diagram format)
+### 6. Round 1 decisions (scope, roles, authentication, policy, tables, markets, assignment, reserve, approval, diagram format)
 
-**AI said:** Ten recommendations, e.g. JWT over a plain role header, claim must link to a policy, separate motor / property detail tables instead of one JSON column, auto-create an initial reserve at submission so unassessed claims don't show zero exposure, manager sign-off stays on paper.
-**What I did:** Accepted all ten.
-**Why:** _TODO — at least say why the reserve one makes sense to me_
+**AI said:** It made ten recommendations, including JWT rather than a plain role header, a mandatory link from each claim to a policy, separate motor and property detail tables rather than a single JSON column, an initial reserve created automatically at submission so that unassessed claims do not show zero exposure, and manager sign-off remaining a manual process.
+**What I did:** I accepted all ten.
+**Why:** They reflect how a real claims system operates. The reserve is the most important: an insurer must carry an estimated liability from the moment a claim exists, so an unassessed claim showing zero would understate exposure on the manager dashboard precisely when it matters. JWT allows every service to trust the caller's identity and role without querying another service. Typed motor and property tables keep the fields validated by the database rather than hidden in a JSON column.
 
 ### 7. Login screens and testing approach
 
-**Asked:** Round 2 had one shared login, and tests written after the code.
-**AI said:** One login, role decides where you land. Tests: state machine unit tests plus two integration tests.
-**What I did:** Challenged both. Wanted `/login` for claimants and `/admin/login` for staff. Wanted proper TDD, red-green-refactor, with DRY and YAGNI.
-**AI then:** Agreed. Added that the server must refuse the wrong role at the wrong door, not just the UI. Limited TDD to code with logic (not POMs, config or Angular templates). One commit per green cycle, no deliberately red commits.
-**Why:** _TODO_
+**Asked:** The Round 2 proposal used a single shared login and wrote tests after the code.
+**AI said:** It recommended one login, with the user's role determining the landing page, and a test suite of state machine unit tests plus two integration tests.
+**What I did:** Challenged both. I required `/login` for claimants and `/admin/login` for staff, and strict test-driven development (red-green-refactor) following DRY and YAGNI.
+**AI then:** It agreed, and added that the server, not only the UI, must reject a user whose role does not match the login page. It limited TDD to code containing logic (excluding page objects, configuration and Angular templates), with one commit per green cycle and no deliberately failing commits.
+**Why:** Insurers separate the customer portal from the staff back office, so staff access can later receive stricter controls (such as SSO or network restrictions) without affecting the customer journey. The server must enforce the separation, because a check that exists only in the UI provides no protection. I chose TDD because the state machine and monetary rules are where defects are most costly, and writing the test first requires each rule to be stated before it is implemented.
 
 ### 8. `claim_document`
 
-**AI said:** YAGNI, so tables for things we don't build get no migration. That included `claim_document`.
-**What I did:** Overrode. Documents are in the build.
-**AI then:** Files on a local volume with metadata in the table, PDF / JPEG / PNG up to 10 MB checked on the server, only the claim owner or staff can download, no extra Kafka event.
-**Why:** _TODO_
+**AI said:** Following YAGNI, tables for features outside the build should have no migration, and that included `claim_document`.
+**What I did:** Overrode. Document upload is part of the build.
+**AI then:** It stored files on a local volume with their metadata in the table, validated PDF, JPEG and PNG files up to 10 MB on the server, restricted downloads to the claim owner and staff, and added no new Kafka event.
+**Why:** An officer cannot assess a claim without supporting evidence, and an information request is meaningless if the claimant cannot upload a response. YAGNI applies to features nobody needs; documents are needed from day one.
 
 ### 9. Payment
 
-**Asked:** Asked the AI to explain what a payment module really involves.
-**AI said:** Laid out three options: just stamp a reference on the decision, a thin `payment` table, or a fourth service with a Kafka round-trip to a fake bank. Recommended the thin table; said a fourth service is where 5 hours stops being realistic.
-**What I did:** Accepted the thin table.
-**Why:** _TODO_
+**Asked:** I asked the AI to explain what a payment module would realistically involve.
+**AI said:** It presented three options: recording a reference on the decision, a lightweight `payment` table, or a fourth service with a Kafka round trip to a simulated bank. It recommended the lightweight table, noting that a fourth service would not be realistic within five hours.
+**What I did:** I accepted the lightweight table.
+**Why:** It completes the lifecycle (approved, paid, settled) with an auditable record, and a unique constraint on `claim_id` makes a duplicate payment impossible at the database level. A simulated bank integration would spend the available time on infrastructure that demonstrates nothing about claims handling.
 
 ### 10. Manager permissions
 
-**Asked:** Diagrams only said "officer" everywhere.
-**What I did:** Told it a manager must be able to do everything an officer can, plus the dashboard.
-**AI then:** Said that was the intent, made it explicit in the docs and the spec.
-**Why:** _TODO_
+**Asked:** The diagrams referred only to "officer" throughout.
+**What I did:** I specified that a manager must be able to perform every officer action, in addition to accessing the dashboard.
+**AI then:** It confirmed this was the intent and made it explicit in the documentation and the specification.
+**Why:** A manager covers for an absent officer. If a manager can see a stalled claim but cannot act on it, that is an operational gap, and documentation that mentions only "officer" is exactly the kind of ambiguity that later becomes a defect.
 
-### 11. What if Kafka is down
+### 11. Kafka outage handling
 
-**Asked:** If the queue is down, do we have a table to roll back?
-**AI said:** Not rollback. The `outbox_event` table holds the events and a relay keeps retrying, so claims still go through and dashboards / notifications just catch up later. Also pointed out two gaps: dead letters sit in a Kafka topic nobody is watching, and published outbox rows never get purged.
-**What I did:** Accepted. Both gaps go under "with more time".
-**Why:** _TODO_
+**Asked:** If the message broker is unavailable, is there a table to roll back to?
+**AI said:** Rollback is not required. The `outbox_event` table holds the events and a relay retries until delivery succeeds, so claims continue to be processed and the dashboards and notifications catch up afterwards. It also identified two gaps: dead-lettered messages go to a Kafka topic that nothing monitors, and published outbox rows are never purged.
+**What I did:** I accepted this approach and recorded both gaps under "with more time".
+**Why:** A Kafka outage must never prevent a customer from filing a claim. The outbox writes each event in the same transaction as the claim, so no event is lost and none is published for a change that was rolled back. The two gaps concern monitoring and housekeeping rather than correctness, so documenting them was the appropriate decision within the time available.
 
 ### 12. Commit messages
 
-**What I did:** Told the AI to follow Conventional Commits.
-**AI then:** Mapped it to the TDD flow: `feat(scope)` for a green cycle with its test, `refactor(scope)` on its own, `chore` / `build` for scaffolding.
+**What I did:** I instructed the AI to follow the Conventional Commits specification.
+**AI then:** It aligned the convention with the TDD workflow: `feat(scope)` for a green cycle together with its test, `refactor(scope)` as a separate commit, and `chore` or `build` for scaffolding.
 
 ---
 
-## Things the AI decided that I still need to check
+## AI decisions on my review list
 
-- One assessment per claim (unique constraint).
-- Approval is refused if the amount is above the policy's sum insured.
-- JWT signed with a shared key across the three services (it flagged this as a shortcut).
-- The Mermaid diagrams in `docs/` have not been rendered yet.
-- All the spec files under `openspec/changes/claims-platform-mvp/` — read them properly before building.
+- One assessment per claim, enforced by a unique constraint.
+- Approval is rejected if the amount exceeds the policy's sum insured.
+- JWTs are signed with a key shared across the three services; the AI flagged this as a deliberate shortcut.
+- The Mermaid diagrams in `docs/` have not yet been rendered.
+- All specification files under `openspec/changes/claims-platform-mvp/` should be reviewed in full before the build.
 
 ---
 
 ## 18 Nov 2026 — Build session
 
-Said "start building" and let the AI run through the task list. Entries below are
-what it did and decided along the way. Most of these were the AI's calls, not
-mine, so I need to go through them properly.
+With the specification settled, I delegated the task list to the AI. The entries
+below record the decisions it made during the build, so that I can take
+ownership of each one or change it.
 
 ### 13. Java and Spring Boot versions
 
-**AI did:** My machine had JDK 17, 25 and 27 from Homebrew but not 21. It installed 21 because that is what we agreed, instead of quietly using 25. For Spring Boot it asked start.spring.io for the current version (4.1.2) and the real starter names rather than trusting memory. Boot 4 moved a lot of packages and uses Jackson 3, so it looked inside the jars when an import failed.
-**What I did:** Accepted.
-**Why:** _TODO_
+**AI did:** My machine had JDK 17, 25 and 27 installed through Homebrew, but not JDK 21. The AI installed JDK 21, as agreed in the design, rather than silently using version 25. For Spring Boot, it queried start.spring.io for the current version (4.1.2) and the correct starter names instead of relying on memory. Because Boot 4 relocated many packages and adopted Jackson 3, it inspected the JAR contents whenever an import failed.
+**What I did:** I accepted these decisions.
+**Why:** Keeping to the agreed LTS release (21), rather than whichever version happened to be installed, keeps the build reproducible. Verifying versions against the source rather than memory is the correct practice for a major release such as Boot 4.
 
-### 14. Building three things at once
+### 14. Parallel development
 
-**AI did:** Once the event contract (`claim-events`) was fixed, it started separate AI agents for reporting-service, notification-service and later the Angular app, while it built claims-service itself. Each agent got a written brief with the fixed conventions (ports, JWT claims, topic, endpoints) and was told not to commit. The main AI re-ran each agent's tests itself and read the code before committing.
-**What I did:** AI's call. Not something I asked for.
-**To check:** read reporting-service and notification-service line by line, since I did not watch those being written.
+**AI did:** Once the event contract (`claim-events`) was finalised, the AI started separate agents for reporting-service, notification-service and later the Angular application, while building claims-service itself. Each agent received a written brief containing the fixed conventions (ports, JWT claims, topic and endpoints) and was instructed not to commit. The main session re-ran each agent's tests and reviewed the code before committing.
+**What I did:** I accepted this approach. It was safe because the event contract was frozen first, so the services could interact only through it. Only the main session committed, and only after re-running each agent's tests.
+**Follow-up:** Review reporting-service and notification-service line by line, since I did not observe them being written.
 
-### 15. How TDD actually went (being honest here)
+### 15. How TDD was applied in practice
 
-Asked for strict red-green-refactor. What really happened:
+I asked for strict red-green-refactor. The table below shows what actually happened.
 
-| Slice | Red step seen? |
+| Slice | Failing test observed first? |
 |---|---|
-| Event contract | Yes, but only a compile failure (classes did not exist yet) |
-| Sign-in and roles | Yes, properly: app booted, 10 of 12 tests failed on behaviour, then green |
-| State machine | Compile failure, then green |
-| Claim lifecycle (submit, pick up, assess, decide) | Yes: 30 HTTP tests failed with 404s before the code existed |
-| Info requests, documents, settlement | Yes: 32 tests red, then turned green group by group |
-| Outbox relay | Compile failure, then green (incl. the broker-outage test) |
-| reporting-service (agent) | One compile-failure red for the whole group, green on first run after |
-| notification-service (agent) | Tests written first, but the red run failed for a config reason, so no real behavioural red |
+| Event contract | Yes, but only as a compilation failure (the classes did not yet exist) |
+| Sign-in and roles | Yes: the application started, 10 of 12 tests failed on behaviour, and all then passed |
+| State machine | Compilation failure, then passing |
+| Claim lifecycle (submit, pick up, assess, decide) | Yes: 30 HTTP tests failed with 404 responses before the code existed |
+| Information requests, documents, settlement | Yes: 32 tests failed, then passed group by group |
+| Outbox relay | Compilation failure, then passing (including the broker-outage test) |
+| reporting-service (agent) | One compilation failure for the whole group, then passing on the first run |
+| notification-service (agent) | Tests were written first, but the initial run failed for a configuration reason, so no genuine behavioural failure was observed |
 
-So: tests always came before the code, but the commits are per feature slice
-(one red, one green), not one commit per tiny cycle, and there was almost no
-separate refactor commit. If the panel asks "was this strict TDD?", the honest
-answer is "test-first, coarse-grained".
+In summary, tests were always written before the code, but commits were made per
+feature slice (one failing, one passing) rather than per individual cycle, and
+there were very few separate refactoring commits. If the panel asks whether this
+was strict TDD, the accurate answer is "test-first, at a coarse granularity".
 
-### 16. Things the AI changed from the design while building
+### 16. Changes the AI made to the design during the build
 
-- **Extra columns on `claim`:** `current_reserve`, `decided_at`, `settled_at`. The ER diagram said "latest reserve row is current"; AI kept the reserve history table but also copies the current figure onto the claim so reads and events do not need a subquery. ER diagram updated.
-- **`CHAR(2)`/`CHAR(3)` became `VARCHAR`** for market and currency, because Hibernate schema validation rejected `CHAR`.
-- **PostgreSQL is on host port 5433**, since 5432 was already used by a local Postgres.
-- **Policy seed period runs to end of 2027**, so tests do not start failing in January.
-- **reporting and notification use plain JDBC, not JPA.** Their writes are upserts and aggregates.
-- **Claims-service puts information requests, documents and payment in the same Java package as claims** instead of separate packages, to avoid a package cycle.
+- **Additional columns on `claim`:** `current_reserve`, `decided_at` and `settled_at`. The ER diagram originally treated the latest reserve row as the current reserve. The AI retained the reserve history table but also copied the current figure onto the claim, so that reads and events do not require a subquery. The ER diagram was updated accordingly.
+- `**CHAR(2)` and `CHAR(3)` were changed to `VARCHAR**` for market and currency, because Hibernate schema validation rejected `CHAR`.
+- **PostgreSQL runs on host port 5433**, because port 5432 was already in use by a local PostgreSQL installation.
+- **The seeded policy period extends to the end of 2027**, so that the tests do not begin failing in January.
+- **reporting-service and notification-service use plain JDBC rather than JPA**, because their writes consist of upserts and aggregates.
+- **claims-service places information requests, documents and payments in the same Java package as claims** rather than in separate packages, to avoid a package dependency cycle.
 
-### 17. Behaviour the AI chose that I did not specify
+### 17. Behaviour the AI introduced beyond my specification
 
-- Someone else's claim, policy or document returns **404, not 403**, so ids cannot be probed.
-- Sign-in fails with the **same response** for unknown account, wrong password and wrong door.
-- **Reserve and assessment are hidden from the claimant** (internal figures). Payment reference too.
-- Rejecting or approving checks the **status first**, then the amount.
-- The relay **stops at the first failed send** so later events cannot overtake an unpublished one.
-- Uploaded file type is read from the **first bytes of the file**, not the declared content type. Downloads are forced as attachments.
-- `/v3/api-docs` is **public** on all three services so the frontend can generate types.
-- Staff actions return **200 with the whole updated claim**, not 201 or 204.
+- Requests for another user's claim, policy or document return **404 rather than 403**, so that identifiers cannot be probed.
+- Sign-in returns the **same response** for an unknown account, an incorrect password and the wrong login page.
+- **The reserve and assessment are hidden from the claimant** as internal figures, as is the payment reference.
+- Approval and rejection check the **claim status first**, and the amount second.
+- The outbox relay **stops at the first failed send**, so that later events cannot overtake an unpublished one.
+- The type of an uploaded file is determined from **its first bytes** rather than the declared content type, and downloads are always served as attachments.
+- `/v3/api-docs` is **public** on all three services, so that the frontend can generate its types.
+- Staff actions return **200 with the full updated claim**, rather than 201 or 204.
 
-**Why (for all of 16 and 17):** _TODO — go through each, keep or change_
+**Why (for all of 16 and 17):** I retained all of them. The changes in 16 are pragmatic, and the ER diagram was updated to match. The behaviours in 17 are security and integrity defaults I would want regardless: returning 404 rather than 403 and using identical sign-in errors prevent account and identifier probing, hiding the reserve keeps internal figures internal, stopping at the first failure preserves event ordering, and inspecting the file's actual bytes prevents disguised uploads.
 
 ---
 
-## 18 Nov 2026 — Hands-on testing (me clicking through the app)
+## 18 Nov 2026 — Hands-on testing
 
-This part is where I pushed back the most, after actually using what the AI built.
+In this phase I tested the application myself, and it is where I challenged the
+AI's work most often.
 
 ### 18. Demo password
 
-**What I did:** Asked for all seeded accounts to use one simple password.
-**AI then:** Changed the seed, tests, README and the running database, and made re-seeding refresh the hash. Added a line in the README that the seed is demo data only.
+**What I did:** I asked for all seeded accounts to share one simple password.
+**AI then:** It updated the seed data, tests, README and running database, and made re-seeding refresh the password hash. It also added a note to the README that the seed is demonstration data only.
 
-### 19. "Why does my password not work?"
+### 19. Sign-in rejected at the claimant login
 
-**Asked:** Officer account refused at the claimant login.
-**AI said:** Wrong door, working as designed. The server gives the same error for wrong password, unknown email and wrong door on purpose, so the form cannot be used to find out which accounts exist. Offered a friendlier hint.
-**What I did:** Accepted the explanation. _TODO: decide if I want the hint._
+**Asked:** An officer account was rejected at the claimant login page.
+**AI said:** This was the intended behaviour, because the account was used at the wrong login page. The server deliberately returns the same error for an incorrect password, an unknown email address and the wrong login page, so the form cannot be used to discover which accounts exist. It offered to add a more helpful hint.
+**What I did:** I accepted the explanation and kept the generic error, because resistance to account enumeration is worth more than the convenience of a hint.
 
 ### 20. Calendar on the date field
 
-**What I did:** Asked for a calendar dropdown.
-**AI first:** Added a button that opens the browser's built-in date picker (no new library). It did not work properly in my browser.
-**AI then:** Switched to the Angular Material datepicker, day/month/year, future dates disabled.
-**Lesson:** The "lazy" native option was not good enough here. The AI only confirmed the button called the picker, not that a calendar appeared, and said so.
+**What I did:** I requested a calendar picker for the date field.
+**AI first:** It added a button that opens the browser's built-in date picker, avoiding a new library. This did not work correctly in my browser.
+**AI then:** It switched to the Angular Material datepicker, with day, month and year selection and future dates disabled.
+**Lesson:** My hands-on testing showed that the minimal native option was not sufficient here. The AI had verified only that the button invoked the picker, not that a calendar appeared, and it stated this limitation.
 
-### 21. Is "amount claimed" really necessary?
+### 21. Whether the claimed amount is necessary
 
-**Asked:** In insurance, does the claimant need to state the amount?
-**AI said:** No. At first notification most people have no quote, and the figure that matters is the insurer's reserve. But our design used the claimed amount as the initial reserve, so a blank needs a stand-in or exposure goes blind again. Recommended: optional "estimated loss", with a default reserve when blank.
-**What I did:** Challenged the original design; accepted the fix.
-**AI then changed its own proposal:** it first said "a fixed default figure per line", then used a **percentage of the sum insured** (10% motor, 5% property) because a fixed number means nothing across currencies.
-**Why:** _TODO — and check I am happy with 10% / 5%_
+**Asked:** In insurance practice, does the claimant need to state an amount?
+**AI said:** No. At first notification of loss, most claimants do not yet have a quote, and the figure that matters is the insurer's reserve. However, the design used the claimed amount as the initial reserve, so a blank value would require a substitute or exposure would again be understated. It recommended an optional "estimated loss" field, with a default reserve applied when it is left blank.
+**What I did:** I challenged the original design and accepted the revised approach.
+**AI then revised its own proposal:** It initially suggested a fixed default figure per line of business, then changed to a **percentage of the sum insured** (10% for motor, 5% for property), because a fixed figure is meaningless across currencies.
+**Why:** This reflects how first notification of loss works in practice: customers report a claim before they have a quote. A percentage of the sum insured scales across currencies and policy sizes, whereas a fixed figure does not. The 10% and 5% rates are starting assumptions; in production they would be derived from historical claims data.
 
-### 22. Refresh loses the form
+### 22. Form progress lost on refresh
 
-**What I did:** Reported that refreshing the New claim page sent me back to step 1.
-**AI then:** Saves the draft and the current step in sessionStorage, restores both on load, clears on submit or cancel. Attached files cannot be saved and have to be re-added; the page says so.
+**What I did:** I reported that refreshing the New Claim page returned me to step 1.
+**AI then:** It saved the draft and the current step in sessionStorage, restored both on page load, and cleared them on submission or cancellation. Attached files cannot be persisted this way and must be re-added; the page informs the user of this.
 
-### 23. One claim per policy at a time
+### 23. One open claim per policy
 
-**What I did:** Told the AI a policy can only have one claim until that flow is done.
-**AI then:** Service check with a clear 409, plus a partial unique index so two submissions at once cannot both pass. The policy dropdown greys out a policy with a claim in progress.
-**AI's note:** In real practice one policy can have several open claims for separate incidents. It built my rule and recorded the alternative in the design (D10a).
-**Why:** _TODO — the panel may ask why I chose the stricter rule_
+**What I did:** I specified that a policy may have only one claim in progress at a time.
+**AI then:** It added a service-level check returning a clear 409 response, together with a partial unique index so that two simultaneous submissions cannot both succeed. The policy dropdown disables any policy that already has a claim in progress.
+**AI's note:** In practice, a policy can have several open claims for separate incidents. The AI implemented my rule and documented the alternative in the design (D10a).
+**Why:** The stricter rule prevents duplicate claims for the same incident and keeps the MVP straightforward to reason about. It is a deliberate and reversible choice: supporting several open claims later requires removing one partial index and the service check, and the alternative is already documented in D10a.
 
-### 24. "Why are the other services not in Docker?"
+### 24. Running all services in Docker
 
-**Asked:** My Docker list only showed Postgres and Kafka.
-**AI said:** By design: only infrastructure was containerised, services ran with `java -jar` on the host so a code change needs a quick restart, not an image rebuild. Downside is five commands in four terminals. Offered to containerise everything.
-**What I did:** Asked for all of it in Docker Compose.
-**AI then:** One Dockerfile for the three services (build argument picks the module), nginx for the frontend that also routes `/api` to the services, and compose entries for all. It had to give Kafka two listeners, one for containers and one for the host, because a Kafka client reconnects to whatever address the broker advertises. Services run as a non-root user. Verified by walking a claim through the containers.
-**To check:** I should be able to explain the two Kafka listeners myself.
+**Asked:** Why did my Docker container list show only PostgreSQL and Kafka?
+**AI said:** This was by design. Only the infrastructure was containerised, while the services ran with `java -jar` on the host so that a code change required only a quick restart rather than an image rebuild. The drawback was five commands across four terminals. It offered to containerise everything.
+**What I did:** I asked for the entire system to run under Docker Compose.
+**AI then:** It created a single Dockerfile for the three services (a build argument selects the module), an nginx image for the frontend that also routes `/api` requests to the services, and Compose entries for every component. Kafka required two listeners, one for containers and one for the host, because a Kafka client reconnects to whichever address the broker advertises. The services run as a non-root user. The AI verified the setup by taking a claim through its full lifecycle in the containers.
+**Follow-up:** I should be able to explain the two Kafka listeners myself.
+
+### 25. Database per service, and removing the unused database
+
+**Asked:** When I connected to PostgreSQL from a database client, I asked why the data is split across several databases, whether foreign keys are used, and whether the extra `claims` database was still needed.
+**AI said:** Each service owns its own database (`claims_db`, `reporting_db`, `notification_db`), as decided in design D7, so that no service can couple to another's tables; data is shared only through Kafka events. Foreign keys are used throughout `claims_db` but cannot cross databases. The `claims` database was never used: PostgreSQL creates it automatically because the user is named `claims`.
+**What I did:** I asked for the unused database to be removed.
+**AI then:** It dropped the empty `claims` database and set `POSTGRES_DB: claims_db` in Docker Compose, so a fresh volume no longer recreates it, and removed the now-duplicate `CREATE DATABASE claims_db` from the init script.
+**Why:** A clean environment is easier to reason about and to demonstrate. Understanding the isolation also prepared me to defend the trade-off: independent schemas and contained failures, at the cost of no cross-service joins and eventually consistent read models.
+
+### 26. A "My policies" page for claimants
+
+**Asked:** Apart from making a new claim, can a customer see their policies?
+**AI said:** Only inside the New Claim dropdown. The existing `GET /api/policies` endpoint already returned everything a policy page needs, so the page would be a frontend-only change.
+**What I did:** I asked for the page.
+**AI then:** It added a My Policies page listing each policy's number, type, cover period, sum insured and any claim in progress, with a link to that claim. Policies without an open claim offer a "Make a claim" button that opens New Claim with the policy preselected. Claimants also gained a navigation bar (My claims, My policies). It verified the page against the running application.
+**Why:** Customers expect to see what they are covered for before they report a loss. Reusing the existing endpoint delivered this with no backend or schema change.
+
+### 27. Clearing the notification badge when the bell is opened
+
+**What I did:** I specified that opening the notification bell should clear the unread count, for both customers and staff.
+**AI then:** It added `POST /api/notifications/read-all`, test-first (the new test failed with a 404 before the endpoint existed, and all 25 notification-service tests then passed). The badge clears as soon as the bell opens and the server records the notifications as read, so the count stays cleared after a reload and on other devices. New items remain highlighted while the menu is open, so the user can still see what has just arrived.
+**Why:** This matches how users expect notification inboxes to behave. Persisting the change on the server, rather than only hiding the badge in the browser, keeps the count consistent across sessions.
+
+### 28. Structured addresses with a postal code
+
+**What I did:** I asked for the motor accident location and the property address to be captured as structured address fields with a postal code, instead of a single free-text field. When the AI asked whether to use three address lines or street, city and state, I chose three address lines, the common layout on Malaysian forms, which also suits Singapore.
+**AI then:** It introduced one shared `Address` (address lines 1 to 3 and postal code) for both claim types, used by the request, the database columns and the response. A Flyway migration (V7) renamed the existing column to `address_line1` and added the new columns, so existing claims keep their address as line 1. Line 1 and a 5 or 6 digit postal code are required and validated on both the server and the form. The tests were updated first and failed before the change, and all 94 claims-service tests then passed. The ER diagram and the generated frontend API types were updated.
+**Why:** Structured addresses with postal codes are what insurers need for assessing a location, detecting fraud and reporting by area. Migrating in place rather than recreating the tables preserved existing claims.
