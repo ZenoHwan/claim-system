@@ -6,7 +6,7 @@ import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
-import { concat, last, of, switchMap } from 'rxjs';
+import { concat, last, of, switchMap, tap } from 'rxjs';
 import { ClaimDetail } from '../api/types';
 import { ClaimsApi, documentProblem } from '../core/claims-api';
 import { problemMessage } from '../core/http';
@@ -61,15 +61,17 @@ import { StatusChip } from '../shared/status-chip';
                 (change)="addFiles(picker.files); picker.value = ''"
               />
               <div class="row">
-                <button matButton="outlined" type="button" (click)="picker.click()">
+                <button matButton="outlined" type="button" [disabled]="busy()" (click)="picker.click()">
                   Attach files
                 </button>
-                @for (file of files(); track file) {
-                  <span class="row"
-                    ><mat-icon aria-hidden="true">description</mat-icon>{{ file.name }}</span
-                  >
-                }
               </div>
+              @for (file of files(); track file) {
+                <div class="row">
+                  <mat-icon aria-hidden="true">description</mat-icon>
+                  <span>{{ file.name }}</span>
+                  <button matButton type="button" [disabled]="busy()" (click)="removeFile(file)">Remove</button>
+                </div>
+              }
               @if (error()) {
                 <p class="error-text" role="alert">{{ error() }}</p>
               }
@@ -151,12 +153,22 @@ export class ClaimDetailPage {
     this.files.update((files) => [...files, ...Array.from(picked ?? [])]);
   }
 
+  protected removeFile(file: File) {
+    this.files.update((files) => files.filter((f) => f !== file));
+  }
+
   protected send(requestId: string) {
     const claimId = this.id();
     this.busy.set(true);
     this.error.set('');
     // Files first, linked to the request, so they are already there when staff see the reply.
-    concat(...this.files().map((file) => this.api.upload(claimId, file, requestId)), of(null))
+    // Each file leaves the list once it is uploaded, so a retry after a failure never sends it twice.
+    concat(
+      ...this.files().map((file) =>
+        this.api.upload(claimId, file, requestId).pipe(tap(() => this.removeFile(file))),
+      ),
+      of(null),
+    )
       .pipe(
         last(),
         switchMap(() => this.api.respond(claimId, requestId, this.reply.value)),

@@ -45,6 +45,11 @@ interface Problem {
 
 /** One readable sentence from a problem-details error response. */
 export function problemMessage(error: unknown): string {
+  const status = (error as HttpErrorResponse)?.status;
+  // 0: no connection; 502-504: the service behind the proxy is down or restarting
+  if (status === 0 || status === 502 || status === 503 || status === 504) {
+    return 'The service is not reachable right now. Please wait a moment and try again.';
+  }
   const problem = (error as HttpErrorResponse)?.error as Problem | undefined;
   const fields = problem?.errors?.map((e) => `${e.field}: ${e.message}`).join('; ');
   return fields || problem?.detail || 'Something went wrong. Please try again.';

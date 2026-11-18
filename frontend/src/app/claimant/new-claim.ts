@@ -1,11 +1,11 @@
 import { CurrencyPipe, DatePipe, NgTemplateOutlet } from '@angular/common';
-import { Component, afterNextRender, computed, inject, signal, viewChild } from '@angular/core';
+import { Component, afterNextRender, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MAT_DATE_LOCALE, provideNativeDateAdapter } from '@angular/material/core';
+import { DateAdapter, MAT_DATE_LOCALE, provideNativeDateAdapter } from '@angular/material/core';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
@@ -16,12 +16,18 @@ import { concat, last, of, switchMap } from 'rxjs';
 import { LossCause, Policy, SubmitClaimRequest } from '../api/types';
 import { ClaimsApi, documentProblem } from '../core/claims-api';
 import { applyFieldErrors, problemMessage } from '../core/http';
+import { DayMonthYearAdapter } from '../shared/day-month-year-adapter';
+import { POSTAL_CODE_DIGITS, allowOnly, errorText, minChars, plate, postalCode, rules } from '../shared/validation';
 
 /** Report an incident in five steps: policy, incident, line-specific details, documents, review. */
 @Component({
   selector: 'app-new-claim',
   // day/month/year, as claimants in these markets write dates
-  providers: [provideNativeDateAdapter(), { provide: MAT_DATE_LOCALE, useValue: 'en-GB' }],
+  providers: [
+    provideNativeDateAdapter(),
+    { provide: DateAdapter, useClass: DayMonthYearAdapter },
+    { provide: MAT_DATE_LOCALE, useValue: 'en-GB' },
+  ],
   imports: [
     CurrencyPipe,
     DatePipe,
@@ -76,7 +82,7 @@ import { applyFieldErrors, problemMessage } from '../core/http';
               </p>
             }
             <div class="row">
-              <button matButton="filled" matStepperNext type="button">Next</button>
+              <button matButton="filled" matStepperNext type="button" (click)="form.controls.policyId.markAsTouched()">Next</button>
             </div>
           </div>
         </mat-step>
@@ -89,33 +95,36 @@ import { applyFieldErrors, problemMessage } from '../core/http';
                 matInput
                 [matDatepicker]="datePicker"
                 formControlName="incidentDate"
-                [max]="today"
+                [min]="coverFrom()"
+                [max]="latestIncidentDate()"
                 placeholder="dd/mm/yyyy"
+                maxlength="10"
+                (keydown)="allowOnly($event, dateChars)"
               />
               <mat-datepicker-toggle matIconSuffix [for]="datePicker" />
               <mat-datepicker #datePicker />
-              @if (form.controls.incident.controls.incidentDate.errors?.['server']; as message) {
-                <mat-error>{{ message }}</mat-error>
-              }
+              <mat-error>{{ errorText(form.controls.incident.controls.incidentDate) }}</mat-error>
             </mat-form-field>
             <mat-form-field>
               <mat-label>What happened?</mat-label>
-              <textarea matInput rows="4" formControlName="incidentDescription"></textarea>
+              <textarea matInput rows="4" formControlName="incidentDescription" maxlength="4000"></textarea>
+              <mat-hint>At least 20 characters, e.g. where you were going and what hit what.</mat-hint>
+              <mat-error>{{ errorText(form.controls.incident.controls.incidentDescription) }}</mat-error>
             </mat-form-field>
             <mat-form-field>
               <mat-label>Estimated loss ({{ policy()?.currency }}), if known</mat-label>
               <input
                 matInput
-                type="number"
-                min="0.01"
-                step="0.01"
+                inputmode="decimal"
                 formControlName="claimedAmount"
+                (keydown)="allowOnly($event, amountChars)"
               />
               <mat-hint>Optional. Leave blank if you do not have a quote yet.</mat-hint>
+              <mat-error>{{ errorText(form.controls.incident.controls.claimedAmount) }}</mat-error>
             </mat-form-field>
             <div class="row">
               <button matButton matStepperPrevious type="button">Back</button>
-              <button matButton="filled" matStepperNext type="button">Next</button>
+              <button matButton="filled" matStepperNext type="button" (click)="form.controls.incident.markAllAsTouched()">Next</button>
             </div>
           </div>
         </mat-step>
@@ -128,11 +137,21 @@ import { applyFieldErrors, problemMessage } from '../core/http';
             <div class="stack step" formGroupName="motor">
               <mat-form-field>
                 <mat-label>Vehicle registration</mat-label>
-                <input matInput formControlName="vehicleRegistration" />
+                <input
+                  matInput
+                  formControlName="vehicleRegistration"
+                  maxlength="12"
+                  autocapitalize="characters"
+                  (blur)="tidyPlate()"
+                  (keydown)="allowOnly($event, plateChars)"
+                />
+                <mat-hint>For example WXY 1234 or SBA 1234 A</mat-hint>
+                <mat-error>{{ errorText(form.controls.motor.controls.vehicleRegistration) }}</mat-error>
               </mat-form-field>
               <mat-form-field>
                 <mat-label>Driver name</mat-label>
-                <input matInput formControlName="driverName" />
+                <input matInput formControlName="driverName" maxlength="200" autocomplete="name" />
+                <mat-error>{{ errorText(form.controls.motor.controls.driverName) }}</mat-error>
               </mat-form-field>
               <p class="label">Accident location</p>
               <ng-container
@@ -155,12 +174,13 @@ import { applyFieldErrors, problemMessage } from '../core/http';
                     <mat-option [value]="cause">{{ cause }}</mat-option>
                   }
                 </mat-select>
+                <mat-error>{{ errorText(form.controls.property.controls.lossCause) }}</mat-error>
               </mat-form-field>
             </div>
           }
           <div class="row">
             <button matButton matStepperPrevious type="button">Back</button>
-            <button matButton="filled" matStepperNext type="button">Next</button>
+            <button matButton="filled" matStepperNext type="button" (click)="(isMotor() ? form.controls.motor : form.controls.property).markAllAsTouched()">Next</button>
           </div>
         </mat-step>
 
@@ -208,7 +228,7 @@ import { applyFieldErrors, problemMessage } from '../core/http';
                 <dd>{{ incident.incidentDate | date: 'd MMM y' }}</dd>
                 <dt>Estimated loss</dt>
                 <dd>
-                  @if (incident.claimedAmount !== null) {
+                  @if (incident.claimedAmount !== null && incident.claimedAmount !== '') {
                     {{ incident.claimedAmount | currency: p.currency : 'code' }}
                   } @else {
                     Not stated
@@ -242,22 +262,32 @@ import { applyFieldErrors, problemMessage } from '../core/http';
         <div class="stack" [formGroup]="group">
           <mat-form-field>
             <mat-label>Address line 1</mat-label>
-            <input matInput formControlName="addressLine1" />
+            <input matInput formControlName="addressLine1" maxlength="300" />
+            <mat-error>{{ errorText(group.controls.addressLine1) }}</mat-error>
           </mat-form-field>
           <mat-form-field>
             <mat-label>Address line 2 (optional)</mat-label>
-            <input matInput formControlName="addressLine2" />
+            <input matInput formControlName="addressLine2" maxlength="300" />
+            <mat-error>{{ errorText(group.controls.addressLine2) }}</mat-error>
           </mat-form-field>
           <mat-form-field>
             <mat-label>Address line 3 (optional)</mat-label>
-            <input matInput formControlName="addressLine3" />
+            <input matInput formControlName="addressLine3" maxlength="300" />
+            <mat-error>{{ errorText(group.controls.addressLine3) }}</mat-error>
           </mat-form-field>
           <mat-form-field class="postal">
             <mat-label>Postal code</mat-label>
-            <input matInput formControlName="postalCode" inputmode="numeric" maxlength="6" />
-            @if (group.controls.postalCode.hasError('pattern')) {
-              <mat-error>5 or 6 digits</mat-error>
+            <input
+              matInput
+              formControlName="postalCode"
+              inputmode="numeric"
+              [maxlength]="postalDigits() ?? 6"
+              (keydown)="allowOnly($event, digitChars)"
+            />
+            @if (postalDigits(); as digits) {
+              <mat-hint>{{ digits }} digits</mat-hint>
             }
+            <mat-error>{{ errorText(group.controls.postalCode) }}</mat-error>
           </mat-form-field>
         </div>
       </ng-template>
@@ -294,18 +324,26 @@ export class NewClaim {
   private readonly fb = inject(FormBuilder).nonNullable;
 
   protected readonly today = new Date();
+  /** The chosen policy's market, kept apart from `policy` because the form's validators read it. */
+  private readonly marketCode = signal<string | undefined>(undefined);
+  protected readonly errorText = errorText;
+  protected readonly allowOnly = allowOnly;
+  protected readonly dateChars = /[\d/]/;
+  protected readonly amountChars = /[\d.]/;
+  protected readonly digitChars = /\d/;
+  protected readonly plateChars = /[a-zA-Z\d ]/;
   protected readonly lossCauses: LossCause[] = ['FIRE', 'WATER', 'THEFT', 'STORM', 'OTHER'];
 
   protected readonly form = this.fb.group({
     policyId: ['', Validators.required],
     incident: this.fb.group({
       incidentDate: [null as Date | null, Validators.required],
-      incidentDescription: ['', Validators.required],
-      claimedAmount: [null as number | null, Validators.min(0.01)],
+      incidentDescription: ['', [Validators.required, minChars(20), Validators.maxLength(4000)]],
+      claimedAmount: [null as number | string | null, rules.amount],
     }),
     motor: this.fb.group({
-      vehicleRegistration: ['', Validators.required],
-      driverName: ['', Validators.required],
+      vehicleRegistration: ['', [Validators.required, rules.plate]],
+      driverName: ['', [Validators.required, minChars(2), rules.name]],
       accidentLocation: this.address(),
       thirdPartyInvolved: [false],
     }),
@@ -315,13 +353,13 @@ export class NewClaim {
     }),
   });
 
-  /** Same rules as the server: line 1 and a 5 (MY) or 6 (SG) digit postal code are required. */
+  /** Same rules as the server. The postal code's length follows the chosen policy's market. */
   private address() {
     return this.fb.group({
-      addressLine1: ['', Validators.required],
-      addressLine2: [''],
-      addressLine3: [''],
-      postalCode: ['', [Validators.required, Validators.pattern(/^\d{5,6}$/)]],
+      addressLine1: ['', [Validators.required, minChars(3), rules.addressLine]],
+      addressLine2: ['', rules.addressLine],
+      addressLine3: ['', rules.addressLine],
+      postalCode: ['', [Validators.required, postalCode(() => this.marketCode())]],
     });
   }
 
@@ -331,6 +369,19 @@ export class NewClaim {
   });
   protected readonly policy = computed(() => this.policies().find((p) => p.id === this.policyId()));
   protected readonly isMotor = computed(() => this.policy()?.lineOfBusiness !== 'PROPERTY');
+  protected readonly postalDigits = computed(() => POSTAL_CODE_DIGITS[this.policy()?.marketCode ?? '']);
+  /** The incident must fall within the policy's cover and cannot be in the future. */
+  protected readonly coverFrom = computed(() => localDate(this.policy()?.effectiveFrom));
+  protected readonly latestIncidentDate = computed(() => {
+    const coverTo = localDate(this.policy()?.effectiveTo);
+    return coverTo && coverTo < this.today ? coverTo : this.today;
+  });
+
+  /** Shows the plate the way it will be stored, e.g. "wxy1234" becomes "WXY 1234". */
+  protected tidyPlate() {
+    const control = this.form.controls.motor.controls.vehicleRegistration;
+    control.setValue(plate(control.value));
+  }
 
   protected readonly files = signal<File[]>([]);
   protected readonly fileError = signal('');
@@ -343,6 +394,12 @@ export class NewClaim {
 
   constructor() {
     this.api.policies().subscribe((policies) => this.policies.set(policies));
+    // a different market means a different postal code length, so re-check what was typed
+    effect(() => {
+      this.marketCode.set(this.policy()?.marketCode);
+      this.form.controls.motor.controls.accidentLocation.controls.postalCode.updateValueAndValidity();
+      this.form.controls.property.controls.propertyAddress.controls.postalCode.updateValueAndValidity();
+    });
     this.restoreDraft();
     // "Make a claim" on My policies links here with ?policy=<id>; an explicit choice beats the draft's.
     const linked = inject(ActivatedRoute).snapshot.queryParamMap.get('policy');
@@ -419,7 +476,7 @@ export class NewClaim {
       policyId,
       incidentDate: isoDate(incident.incidentDate)!,
       incidentDescription: incident.incidentDescription,
-      claimedAmount: incident.claimedAmount ?? undefined,
+      claimedAmount: amount(incident.claimedAmount),
       ...(this.isMotor()
         ? { motor }
         : { property: { ...property, lossCause: property.lossCause as LossCause } }),
@@ -464,4 +521,14 @@ function isoDate(date: Date | null): string | null {
   }
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+/** The amount field is free text so it can refuse letters; blank means "not stated". */
+function amount(value: number | string | null): number | undefined {
+  return value === null || value === '' ? undefined : Number(value);
+}
+
+/** "2026-01-01" as local midnight, for the date picker's min and max. */
+function localDate(iso: string | undefined): Date | null {
+  return iso ? new Date(iso + 'T00:00:00') : null;
 }
