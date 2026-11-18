@@ -12,6 +12,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -36,8 +37,10 @@ class PolicyController {
 
     private final PolicyRepository policies;
     private final ClaimRepository claims;
+    private final ClaimViews views;
 
-    PolicyController(PolicyRepository policies, ClaimRepository claims) {
+    PolicyController(PolicyRepository policies, ClaimRepository claims, ClaimViews views) {
+        this.views = views;
         this.policies = policies;
         this.claims = claims;
     }
@@ -54,5 +57,11 @@ class PolicyController {
                             open == null ? null : open.getId(), open == null ? null : open.getClaimNumber());
                 })
                 .toList();
+    }
+
+    /** One of the caller's policies with every claim made on it; another holder's policy is not found. */
+    @GetMapping("/{policyId}")
+    ClaimViews.PolicyDetail policy(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID policyId) {
+        return views.policy(CurrentUser.from(jwt), policyId);
     }
 }

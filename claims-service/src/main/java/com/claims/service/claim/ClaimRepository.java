@@ -12,6 +12,8 @@ public interface ClaimRepository extends JpaRepository<Claim, UUID> {
 
     List<Claim> findByAssignedOfficerIdOrderByUpdatedAtDesc(UUID officerId);
 
+    List<Claim> findByPolicyIdOrderBySubmittedAtDesc(UUID policyId);
+
     /** The pick-up queue: oldest first, so nothing is left to age at the bottom. */
     List<Claim> findByMarketCodeAndStatusAndAssignedOfficerIdIsNullOrderBySubmittedAt(String marketCode, ClaimStatus status);
 

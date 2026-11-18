@@ -1,5 +1,6 @@
 package com.claims.service.claim;
 
+import com.claims.service.common.ApiException;
 import com.claims.service.identity.AppUser;
 import com.claims.service.identity.AppUserRepository;
 import com.claims.service.identity.CurrentUser;
@@ -94,6 +95,55 @@ public class ClaimViews {
         this.informationRequests = informationRequests;
         this.documents = documents;
         this.payments = payments;
+    }
+
+    /** A question to or from a claimant that still needs someone to act. */
+    public record FollowUp(
+            UUID claimId, String claimNumber, UUID requestId, String question, String requestedByName,
+            InformationRequest.Status status, Instant requestedAt, String responseText, Instant answeredAt) {}
+
+    public record PolicyDetail(
+            UUID id, String policyNumber, LineOfBusiness lineOfBusiness, String marketCode, String currency,
+            BigDecimal sumInsured, LocalDate effectiveFrom, LocalDate effectiveTo, List<ListItem> claims) {}
+
+    /**
+     * A claimant's follow-ups are the questions waiting for their reply. An officer's are the questions on
+     * their claims still waiting for the claimant (OPEN), and replies they have not acted on yet (ANSWERED,
+     * claim back under review). Either way it is the claim's latest question; acting on the claim clears it.
+     */
+    public List<FollowUp> followUps(CurrentUser user) {
+        List<Claim> found = user.isStaff()
+                ? claims.findByAssignedOfficerIdOrderByUpdatedAtDesc(user.id())
+                : claims.findByClaimantIdOrderByUpdatedAtDesc(user.id());
+        return found.stream()
+                .flatMap(c -> {
+                    List<InformationRequest> asked = informationRequests.findByClaimIdOrderByRequestedAt(c.getId());
+                    if (asked.isEmpty()) {
+                        return java.util.stream.Stream.empty();
+                    }
+                    InformationRequest latest = asked.getLast();
+                    boolean waiting = c.getStatus() == ClaimStatus.INFO_REQUESTED && latest.status == InformationRequest.Status.OPEN;
+                    boolean toReview = user.isStaff()
+                            && c.getStatus() == ClaimStatus.UNDER_REVIEW
+                            && latest.status == InformationRequest.Status.ANSWERED;
+                    return waiting || toReview
+                            ? java.util.stream.Stream.of(new FollowUp(
+                                    c.getId(), c.getClaimNumber(), latest.id, latest.question, name(latest.requestedBy),
+                                    latest.status, latest.requestedAt, latest.responseText, latest.answeredAt))
+                            : java.util.stream.Stream.empty();
+                })
+                .toList();
+    }
+
+    /** One of the holder's own policies with every claim made on it, newest first. */
+    public PolicyDetail policy(CurrentUser holder, UUID policyId) {
+        Policy p = policies.findById(policyId)
+                .filter(found -> found.getHolderId().equals(holder.id()))
+                .orElseThrow(() -> ApiException.notFound("Policy"));
+        return new PolicyDetail(
+                p.getId(), p.getPolicyNumber(), p.getLineOfBusiness(), p.getMarketCode(), p.getCurrency(),
+                p.getSumInsured(), p.getEffectiveFrom(), p.getEffectiveTo(),
+                list(claims.findByPolicyIdOrderBySubmittedAtDesc(p.getId())));
     }
 
     public List<ListItem> submittedBy(CurrentUser claimant) {

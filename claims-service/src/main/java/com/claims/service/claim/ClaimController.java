@@ -48,6 +48,16 @@ class ClaimController {
         return views.submittedBy(user);
     }
 
+    /** The claimant's questions from staff that are still waiting for a reply. */
+    @GetMapping("/follow-ups")
+    List<ClaimViews.FollowUp> followUps(@AuthenticationPrincipal Jwt jwt) {
+        CurrentUser user = CurrentUser.from(jwt);
+        if (user.isStaff()) {
+            throw ApiException.forbidden("Staff see follow-ups through /api/staff/claims/follow-ups");
+        }
+        return views.followUps(user);
+    }
+
     /** One claim, shaped for the caller: a claimant sees their own, staff see their market's. */
     @GetMapping("/{claimId}")
     ClaimViews.Detail claim(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID claimId) {

@@ -41,6 +41,12 @@ class StaffClaimController {
         return views.assignedTo(CurrentUser.from(jwt));
     }
 
+    /** Questions this officer asked that are waiting for the claimant, and replies waiting for them. */
+    @GetMapping("/follow-ups")
+    List<ClaimViews.FollowUp> followUps(@AuthenticationPrincipal Jwt jwt) {
+        return views.followUps(CurrentUser.from(jwt));
+    }
+
     @PostMapping("/{claimId}/assign")
     ClaimViews.Detail pickUp(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID claimId) {
         CurrentUser staff = CurrentUser.from(jwt);
