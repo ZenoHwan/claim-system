@@ -19,7 +19,7 @@ Diagrams live in `docs/` and are the visual form of this document:
 - Production deployment, TLS, an API gateway, an external identity provider.
 - Bank integration, multiple payments per claim, currency conversion.
 - Manager sign-off above an authority limit and claimant withdrawal (drawn in `docs/state-machine.md` only).
-- Frontend automated tests.
+- Frontend unit tests. (End-to-end browser tests were added later; see D21.)
 
 ## Decisions
 
@@ -83,7 +83,7 @@ A policy may carry one claim at a time; another can be raised once it is settled
 
 ### D11. Thin payment
 Approval creates one `payment` row in `REQUESTED`. Recording method and reference moves it to `PAID` and the claim to `SETTLED`. A unique constraint on `payment.claim_id` is the double-payment guard. No bank account details are stored.
-- *Alternative: a payment service with a Kafka round-trip.* The right long-term shape (see `docs/sequence-diagrams.md` section 4); too much for the time box.
+- *Alternative: a payment service with a Kafka round-trip.* The right long-term shape (see `docs/sequence-diagrams.md` section 5); too much for the time box.
 
 ### D12. Documents: metadata in the database, bytes on a local volume
 `claim_document` holds metadata and a server-generated storage key. Files are written under a configured directory. Type is checked from the file's leading bytes, size is capped at 10 MB, and download is authorised per claim.
@@ -100,7 +100,7 @@ Each service publishes OpenAPI from its code. Angular API clients are generated 
 - *Alternative: hand-written OpenAPI first.* More ceremony than one developer needs here.
 
 ### D15. One Angular application, two lazy areas, two login screens
-Standalone components and signals, Angular Material. `/login` leads to `/claims/**` for claimants; `/admin/login` leads to `/admin/**` for staff. Route guards read the role from the token; the server enforces the same rules. The dev server proxies `/api/claims`, `/api/reports` and `/api/notifications` to the three services.
+Standalone components and signals, Angular Material. `/login` leads to `/claims/**` for claimants; `/admin/login` leads to `/admin/**` for staff. Route guards read the role from the token; the server enforces the same rules. The dev server proxies `/api/claims`, `/api/reports` and `/api/notifications` to the three services; in Docker, nginx serves the built app and does the same routing, so the browser talks to one origin.
 - *Alternative: two separate applications.* The brief requires one.
 
 ### D16. Live updates by server-sent events
@@ -114,6 +114,24 @@ Standalone components and signals, Angular Material. `/login` leads to `/claims/
 - One commit per green cycle (test and code together); refactors as separate commits; Conventional Commits format with scopes `claims`, `reporting`, `notification`, `events`, `frontend`, `docs`.
 - `AI_JOURNAL.md` gets an entry at each decision point.
 
+### D18. Follow-ups are derived, not stored
+The Follow-ups lists for claimants and staff, and the counts on their tabs, come from each claim's status and its latest information request: open while the claim is `INFO_REQUESTED`, and for staff also answered while it is back `UNDER_REVIEW`. They clear themselves when the claim moves on.
+- *Alternative: a follow-up table with its own status.* Rejected: a second status can disagree with the claim.
+
+### D19. Every claim field validated on the server, mirrored in the form
+Bean Validation on the request records, plus a market check for postal codes (5 digits MY, 6 SG). Free text is trimmed and collapsed and plates are normalised (`dua1234` to `DUA 1234`) before validation and storage. Errors list every failing field. The form applies the same rules so each field explains itself.
+- *Alternative: form-only checks.* Rejected: the API is the trust boundary.
+
+### D20. Redis for the two reads that grow with usage
+Follow-ups (fetched by every user on every page change, a query per claim) are cached per user in `claims-service`; workload and performance per market and exposure once in `reporting-service`. Entries are typed JSON with a 60-second expiry. `ClaimChanges.record`, the one path for every claim change, clears the claimant's and officer's Follow-ups after commit; the reporting projector clears the event's market (and exposure) after commit. Cache errors are logged and the database answers, with a 500 ms Redis timeout. Static bundles are cached by the browser for a year; API responses stay `no-store`.
+- *Alternative: cache claim details, lists and the queue as well.* Rejected: they change on almost every action, and every extra cache is a place a missed eviction shows stale claim data.
+- *Alternative: expiry only, no eviction.* Rejected: an officer would wait up to a minute to see a reply.
+- *Alternative: no cache.* Defensible at demo scale; dropped once the system is sized for many users.
+
+### D21. End-to-end tests against the real stack
+Playwright drives a claimant and an officer in separate browsers through the Docker stack. A dedicated e2e claimant is created on first run, and each test copies a fresh policy for it straight into PostgreSQL, so tests run in parallel and never depend on earlier runs.
+- *Alternative: a mocked API.* Rejected: it would miss routing, live push and event lag, which is where the real defects were.
+
 ## Risks / Trade-offs
 
 - [Three services plus Kafka is a lot to start in a live demo] → One compose file, health checks, a README with exact start order, and a rehearsed run.
@@ -125,6 +143,9 @@ Standalone components and signals, Angular Material. `/login` leads to `/claims/
 - [Snapshot events couple consumers to the claim's shape] → Events are defined in one module and consumers ignore unknown fields.
 - [Polling relay adds up to a second of delay and constant light database load] → Acceptable at this scale; change data capture is the upgrade path.
 - [Local-disk documents do not survive a multi-instance deployment] → Storage sits behind one small class so that a bucket can replace it.
+- [Live push holds connections in memory, so it works with one notification-service instance only] → Accepted for now; pub/sub on the Redis already running is the upgrade path.
+- [A read that started before a change commits can cache the old value] → Bounded by the 60-second expiry; marked in the code.
+- [Validation rules exist in Java and TypeScript] → Integration tests and the Playwright suite check both.
 
 ## Open Questions
 

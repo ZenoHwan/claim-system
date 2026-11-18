@@ -269,3 +269,26 @@ AI's work most often.
 - **Policy details:** a new `GET /api/policies/{id}` returns the policy with every claim made on it. Customers open it from My Policies to see the type, status, cover period, sum insured, market and claim history, with "Make a claim" offered when no claim is in progress. Another customer's policy returns 404.
 - **Follow-ups:** a customer's tab lists the questions waiting for their reply. A staff member's tab lists replies they have not yet acted on, and the questions they sent that are still waiting for the claimant. The number on the tab counts what that person must act on: unanswered questions for a customer, replies to review for staff. A follow-up clears itself when the claim moves on (the customer replies, or the officer assesses or asks again), so there is no separate status to maintain. The count refreshes on navigation and when a live notification arrives.
 **Why:** Information requests are where claims stall. Making them visible, with a count, means neither side has to remember to check each claim, which shortens the time a claim waits. Deriving the follow-up state from the claim and its latest question keeps it accurate without adding data that could drift.
+
+### 32. End-to-end tests for the frontend
+
+**What I did:** I asked for a comprehensive Playwright suite, so the frontend is covered by automated tests as well as the services.
+**AI then:** It wrote 15 browser tests that run against the full Docker stack:
+- Sign-in through both doors, each door turning away the other kind of account, the password toggle, and the route guards for signed-out visitors, claimants and officers.
+- My Policies and the policy page, including "Make a claim" preselecting the policy and another customer's policy staying hidden.
+- Every rule on the claim form, for Malaysian and Singaporean policies, and the draft surviving a refresh.
+- A motor claim taken by two people in separate browsers from submission, through an officer's question and the customer's reply with an attachment, to approval and payment, checking the live badges, the bell and the question-and-reply trail on both sides. A property claim is taken through assessment to rejection, with the reason shown to the customer.
+The tests sign in as a dedicated claimant account and each gets a fresh policy written directly to the database, so tests run in parallel and do not depend on earlier runs or on the demo data. The suite passed three runs in a row with no flaky failures.
+**AI found while testing:** After a customer replied, their Follow-ups count stayed at one until they moved to another page, and the officer's count behaved the same way after assessing. The count refreshed only on navigation or on a live notification, and nobody is notified about their own action. Both pages now refresh the count after the action succeeds.
+**Why:** The integration tests prove the API; these prove that a customer and an officer can actually complete the journey in the browser. Running two users side by side is what exposed the stale count, which a single-user check by hand had missed.
+
+### 33. A Redis cache sized for many users
+
+**What I did:** Planning for a large user base, I asked for Redis to cache the platform's queries.
+**AI then:**
+- Identified the two reads that grow with usage and cached only those in Redis: the Follow-ups list, which every user fetches on every page change at a cost of one query per claim, and the dashboard reports, which aggregate over every claim. Claim details, lists and the queue were left uncached because they change on almost every action.
+- Kept the cache correct by eviction rather than expiry: every claim change already passes through one method, which now clears the claimant's and officer's Follow-ups after the change commits; reporting clears a market's reports when it applies an event for it. Entries are typed JSON with a 60-second backstop expiry. If Redis is unavailable the database answers within the 500 ms timeout.
+- Wrote the tests first: four new tests prove that entries are served from Redis, cleared on change, and that both services keep working with the Redis container paused. With caching disabled, the cache tests failed for the expected reason. All 166 service tests and the 15 Playwright tests passed.
+**AI found while testing:** After the services were rebuilt, every sign-in returned 502. nginx resolved each service's address once at start-up and kept sending traffic to the old container. It now resolves the services through Docker's DNS on each request, so a restarted or rescaled service is found without restarting nginx. This was very likely also the cause of the earlier failed reply.
+**Why:** Caching only the hot, expensive reads, and clearing them on the one write path every change already uses, gives the speed benefit at scale without the main risk of caching in a claims system: showing someone a stale status or payment. Planning Redis pub/sub for live push across several notification instances is the next step for a large user base.
+
