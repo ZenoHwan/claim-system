@@ -30,6 +30,7 @@ class ClaimService {
 
     private final ClaimAccess access;
     private final ClaimChanges changes;
+    private final ClaimRepository claims;
     private final PolicyRepository policies;
     private final ClaimRecords.MotorDetails motorDetails;
     private final ClaimRecords.PropertyDetails propertyDetails;
@@ -41,7 +42,7 @@ class ClaimService {
     private final Map<LineOfBusiness, BigDecimal> defaultReserveRates;
 
     ClaimService(
-            ClaimAccess access, ClaimChanges changes, PolicyRepository policies,
+            ClaimAccess access, ClaimChanges changes, ClaimRepository claims, PolicyRepository policies,
             ClaimRecords.MotorDetails motorDetails, ClaimRecords.PropertyDetails propertyDetails,
             ClaimRecords.Reserves reserves, ClaimRecords.Assessments assessments, ClaimRecords.Decisions decisions,
             SettlementService settlement, JdbcTemplate jdbc,
@@ -49,6 +50,7 @@ class ClaimService {
             @Value("${claims.reserve.default-rate.property}") BigDecimal propertyRate) {
         this.access = access;
         this.changes = changes;
+        this.claims = claims;
         this.policies = policies;
         this.motorDetails = motorDetails;
         this.propertyDetails = propertyDetails;
@@ -68,6 +70,10 @@ class ClaimService {
             throw ApiException.invalid("incidentDate", "Incident date is outside the policy period "
                     + policy.getEffectiveFrom() + " to " + policy.getEffectiveTo());
         }
+        claims.findFirstByPolicyIdAndStatusNotIn(policy.getId(), ClaimStatus.CLOSED).ifPresent(open -> {
+            throw ApiException.conflict("Policy " + policy.getPolicyNumber() + " already has an open claim, "
+                    + open.getClaimNumber() + ". It must be settled or rejected before another can be raised.");
+        });
         boolean motor = policy.getLineOfBusiness() == LineOfBusiness.MOTOR;
         if (motor && request.motor() == null) {
             throw ApiException.invalid("motor", "Motor details are required for a motor policy");

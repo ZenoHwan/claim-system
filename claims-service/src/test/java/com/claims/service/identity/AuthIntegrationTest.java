@@ -63,9 +63,8 @@ class AuthIntegrationTest extends IntegrationTest {
     void seededClaimantHasAMotorAndAPropertyPolicy() throws Exception {
         mvc.perform(get("/api/policies").header(HttpHeaders.AUTHORIZATION, bearer(AISHA)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(2))
-                .andExpect(jsonPath("$[?(@.lineOfBusiness=='MOTOR')]").exists())
-                .andExpect(jsonPath("$[?(@.lineOfBusiness=='PROPERTY')]").exists());
+                .andExpect(jsonPath("$[?(@.policyNumber=='MY-MOT-000451' && @.lineOfBusiness=='MOTOR')]").exists())
+                .andExpect(jsonPath("$[?(@.policyNumber=='MY-PRP-000112' && @.lineOfBusiness=='PROPERTY')]").exists());
     }
 
     @Test

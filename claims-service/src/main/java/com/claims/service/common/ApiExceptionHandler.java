@@ -1,6 +1,7 @@
 package com.claims.service.common;
 
 import java.util.List;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -32,6 +33,12 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
     ProblemDetail handleLostRace() {
         return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, "The claim was changed by someone else. Reload and try again.");
+    }
+
+    /** A database constraint caught what the code's own check missed, typically two requests at once. */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    ProblemDetail handleConstraint() {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, "The request conflicts with existing data. Reload and try again.");
     }
 
     @Override

@@ -12,6 +12,7 @@ import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -132,6 +133,21 @@ public abstract class IntegrationTest {
         return claim;
     }
 
+    /**
+     * A policy may have only one open claim, so a test that submits a claim takes its own copy of a
+     * seeded policy (same holder, line, market, currency and sum insured).
+     */
+    protected String freshPolicy(String seededPolicyId) {
+        String id = UUID.randomUUID().toString();
+        jdbc.update("""
+                insert into policy (id, policy_number, holder_id, line_of_business, market_code, currency,
+                    sum_insured, effective_from, effective_to)
+                select ?::uuid, ?, holder_id, line_of_business, market_code, currency, sum_insured, effective_from, effective_to
+                from policy where id = ?::uuid
+                """, id, "TEST-" + id.substring(0, 13), seededPolicyId);
+        return id;
+    }
+
     /** Submits a claim and returns its id. */
     protected String submit(String claimantEmail, Map<String, Object> claim) throws Exception {
         return body(postJson("/api/claims", bearer(claimantEmail), claim).andExpect(status().isCreated()))
@@ -139,7 +155,7 @@ public abstract class IntegrationTest {
     }
 
     protected String submitMotorClaim(String amount) throws Exception {
-        return submit(AISHA, motorClaim(AISHA_MOTOR, amount));
+        return submit(AISHA, motorClaim(freshPolicy(AISHA_MOTOR), amount));
     }
 
     protected ResultActions pickUp(String staffEmail, String claimId) throws Exception {

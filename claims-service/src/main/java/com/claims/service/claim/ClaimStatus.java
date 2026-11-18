@@ -27,8 +27,10 @@ public enum ClaimStatus {
         return next().contains(target);
     }
 
-    /** Open claims count toward workload and exposure. */
+    public static final Set<ClaimStatus> CLOSED = Set.of(REJECTED, SETTLED);
+
+    /** Open claims count toward workload and exposure, and block a new claim on the same policy. */
     public boolean isOpen() {
-        return this != REJECTED && this != SETTLED;
+        return !CLOSED.contains(this);
     }
 }

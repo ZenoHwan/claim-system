@@ -27,7 +27,7 @@ class ClaimLifecycleIntegrationTest extends IntegrationTest {
 
         @Test
         void motorClaimIsCreatedSubmittedAndUnassigned() throws Exception {
-            postJson("/api/claims", bearer(AISHA), motorClaim(AISHA_MOTOR, "8500.00"))
+            postJson("/api/claims", bearer(AISHA), motorClaim(freshPolicy(AISHA_MOTOR), "8500.00"))
                     .andExpect(status().isCreated())
                     .andExpect(jsonPath("$.claimNumber").value(matchesPattern("CLM-\\d{4}-\\d{6}")))
                     .andExpect(jsonPath("$.status").value("SUBMITTED"))
@@ -40,7 +40,7 @@ class ClaimLifecycleIntegrationTest extends IntegrationTest {
 
         @Test
         void propertyClaimIsCreated() throws Exception {
-            postJson("/api/claims", bearer(AISHA), propertyClaim(AISHA_PROPERTY, "42000.00"))
+            postJson("/api/claims", bearer(AISHA), propertyClaim(freshPolicy(AISHA_PROPERTY), "42000.00"))
                     .andExpect(status().isCreated())
                     .andExpect(jsonPath("$.lineOfBusiness").value("PROPERTY"))
                     .andExpect(jsonPath("$.property.lossCause").value("WATER"));
@@ -57,7 +57,7 @@ class ClaimLifecycleIntegrationTest extends IntegrationTest {
 
         @Test
         void theClaimedAmountIsOptionalBecauseClaimantsOftenDoNotKnowItYet() throws Exception {
-            Map<String, Object> claim = motorClaim(AISHA_MOTOR, "1.00");
+            Map<String, Object> claim = motorClaim(freshPolicy(AISHA_MOTOR), "1.00");
             claim.remove("claimedAmount");
 
             postJson("/api/claims", bearer(AISHA), claim)
@@ -67,9 +67,9 @@ class ClaimLifecycleIntegrationTest extends IntegrationTest {
 
         @Test
         void withNoClaimedAmountTheInitialReserveIsAShareOfTheSumInsuredForThatLine() throws Exception {
-            Map<String, Object> motor = motorClaim(AISHA_MOTOR, "1.00");
+            Map<String, Object> motor = motorClaim(freshPolicy(AISHA_MOTOR), "1.00");
             motor.remove("claimedAmount");
-            Map<String, Object> property = propertyClaim(AISHA_PROPERTY, "1.00");
+            Map<String, Object> property = propertyClaim(freshPolicy(AISHA_PROPERTY), "1.00");
             property.remove("claimedAmount");
 
             // motor: 10% of 80,000; property: 5% of 500,000
@@ -79,7 +79,7 @@ class ClaimLifecycleIntegrationTest extends IntegrationTest {
 
         @Test
         void aClaimWithNoClaimedAmountStillListsAndPublishesItsDefaultReserve() throws Exception {
-            Map<String, Object> claim = motorClaim(AISHA_MOTOR, "1.00");
+            Map<String, Object> claim = motorClaim(freshPolicy(AISHA_MOTOR), "1.00");
             claim.remove("claimedAmount");
             String id = submit(AISHA, claim);
 
@@ -93,14 +93,14 @@ class ClaimLifecycleIntegrationTest extends IntegrationTest {
         void someoneElsesPolicyIsRefusedAndNothingIsCreated() throws Exception {
             int before = jdbc.queryForObject("select count(*) from claim", Integer.class);
 
-            postJson("/api/claims", bearer(DANIEL), motorClaim(AISHA_MOTOR, "100.00")).andExpect(status().isNotFound());
+            postJson("/api/claims", bearer(DANIEL), motorClaim(freshPolicy(AISHA_MOTOR), "100.00")).andExpect(status().isNotFound());
 
             assertThat(jdbc.queryForObject("select count(*) from claim", Integer.class)).isEqualTo(before);
         }
 
         @Test
         void incidentOutsideThePolicyPeriodIsRefused() throws Exception {
-            Map<String, Object> claim = motorClaim(AISHA_MOTOR, "100.00");
+            Map<String, Object> claim = motorClaim(freshPolicy(AISHA_MOTOR), "100.00");
             claim.put("incidentDate", "2025-12-31");
 
             postJson("/api/claims", bearer(AISHA), claim)
@@ -110,7 +110,7 @@ class ClaimLifecycleIntegrationTest extends IntegrationTest {
 
         @Test
         void invalidFieldsAreAllListed() throws Exception {
-            Map<String, Object> claim = motorClaim(AISHA_MOTOR, "0");
+            Map<String, Object> claim = motorClaim(freshPolicy(AISHA_MOTOR), "0");
             claim.put("incidentDate", LocalDate.now().plusDays(1).toString());
             claim.put("incidentDescription", " ");
 
@@ -124,7 +124,7 @@ class ClaimLifecycleIntegrationTest extends IntegrationTest {
         @Test
         void detailsForThePolicysLineAreRequired() throws Exception {
             // a property-shaped claim against a motor policy
-            postJson("/api/claims", bearer(AISHA), propertyClaim(AISHA_MOTOR, "100.00"))
+            postJson("/api/claims", bearer(AISHA), propertyClaim(freshPolicy(AISHA_MOTOR), "100.00"))
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.errors[0].field").value("motor"));
         }
@@ -137,7 +137,7 @@ class ClaimLifecycleIntegrationTest extends IntegrationTest {
         void claimantSeesOnlyTheirOwnClaimsNewestFirst() throws Exception {
             String first = submitMotorClaim("100.00");
             String second = submitMotorClaim("200.00");
-            String daniels = submit(DANIEL, motorClaim(DANIEL_MOTOR, "300.00"));
+            String daniels = submit(DANIEL, motorClaim(freshPolicy(DANIEL_MOTOR), "300.00"));
 
             List<String> ids = ids(body(getAs("/api/claims", bearer(AISHA)).andExpect(status().isOk())));
 
@@ -189,7 +189,7 @@ class ClaimLifecycleIntegrationTest extends IntegrationTest {
             String later = submitMotorClaim("150.00");
             String taken = submitMotorClaim("200.00");
             pickUp(OFFICER_2, taken);
-            String singapore = submit(SITI_SG, motorClaim(SITI_SG_MOTOR, "300.00"));
+            String singapore = submit(SITI_SG, motorClaim(freshPolicy(SITI_SG_MOTOR), "300.00"));
 
             JsonNode queue = body(getAs("/api/staff/claims/unassigned", bearer(OFFICER_1)).andExpect(status().isOk()));
             List<String> ids = ids(queue);
@@ -417,6 +417,91 @@ class ClaimLifecycleIntegrationTest extends IntegrationTest {
             assertThat(claim.get("teamId").asString()).isEqualTo("10000000-0000-0000-0000-000000000001");
             assertThat(claim.get("currentReserve").decimalValue()).isEqualByComparingTo("7200.00");
             assertThat(claim.get("currency").asString()).isEqualTo("MYR");
+        }
+    }
+
+    @Nested
+    class OneOpenClaimPerPolicy {
+
+        @Test
+        void aSecondClaimOnAPolicyWithAnOpenClaimIsRefused() throws Exception {
+            String policy = freshPolicy(AISHA_MOTOR);
+            submit(AISHA, motorClaim(policy, "100.00"));
+
+            postJson("/api/claims", bearer(AISHA), motorClaim(policy, "200.00"))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("CLM-")));
+        }
+
+        @Test
+        void theRuleHoldsAtEveryOpenStage() throws Exception {
+            String policy = freshPolicy(AISHA_MOTOR);
+            String id = submit(AISHA, motorClaim(policy, "100.00"));
+            pickUp(OFFICER_1, id);
+            assess(OFFICER_1, id, "90.00");
+            approve(OFFICER_1, id, "90.00"); // approved but not yet paid: still open
+
+            postJson("/api/claims", bearer(AISHA), motorClaim(policy, "200.00")).andExpect(status().isConflict());
+        }
+
+        @Test
+        void onceTheClaimIsSettledThePolicyCanBeClaimedAgainstAgain() throws Exception {
+            String policy = freshPolicy(AISHA_MOTOR);
+            String id = submit(AISHA, motorClaim(policy, "100.00"));
+            pickUp(OFFICER_1, id);
+            assess(OFFICER_1, id, "90.00");
+            approve(OFFICER_1, id, "90.00");
+            recordPayment(OFFICER_1, id, "TT-AGAIN-1");
+
+            postJson("/api/claims", bearer(AISHA), motorClaim(policy, "200.00")).andExpect(status().isCreated());
+        }
+
+        @Test
+        void onceTheClaimIsRejectedThePolicyCanBeClaimedAgainstAgain() throws Exception {
+            String policy = freshPolicy(AISHA_MOTOR);
+            String id = submit(AISHA, motorClaim(policy, "100.00"));
+            pickUp(OFFICER_1, id);
+            assess(OFFICER_1, id, "90.00");
+            reject(OFFICER_1, id, "Not covered");
+
+            postJson("/api/claims", bearer(AISHA), motorClaim(policy, "200.00")).andExpect(status().isCreated());
+        }
+
+        @Test
+        void anotherPolicyOfTheSameClaimantIsUnaffected() throws Exception {
+            submit(AISHA, motorClaim(freshPolicy(AISHA_MOTOR), "100.00"));
+
+            postJson("/api/claims", bearer(AISHA), propertyClaim(freshPolicy(AISHA_PROPERTY), "200.00"))
+                    .andExpect(status().isCreated());
+        }
+
+        @Test
+        void theDatabaseItselfRefusesASecondOpenClaimOnAPolicy() throws Exception {
+            String policy = freshPolicy(AISHA_MOTOR);
+            String id = submit(AISHA, motorClaim(policy, "100.00"));
+
+            org.assertj.core.api.Assertions.assertThatThrownBy(() -> jdbc.update("""
+                            insert into claim (id, claim_number, policy_id, claimant_id, line_of_business, market_code, currency,
+                                status, incident_date, incident_description, current_reserve, version, submitted_at, updated_at)
+                            select gen_random_uuid(), 'CLM-DUPLICATE', policy_id, claimant_id, line_of_business, market_code, currency,
+                                'SUBMITTED', incident_date, 'second', 1, 0, now(), now()
+                            from claim where id = ?::uuid
+                            """, id))
+                    .isInstanceOf(org.springframework.dao.DuplicateKeyException.class);
+        }
+
+        @Test
+        void thePolicyListSaysWhichPoliciesAlreadyHaveAnOpenClaim() throws Exception {
+            String policy = freshPolicy(AISHA_MOTOR);
+            String claimNumber = body(postJson("/api/claims", bearer(AISHA), motorClaim(policy, "100.00")))
+                    .get("claimNumber").asString();
+
+            JsonNode policies = body(getAs("/api/policies", bearer(AISHA)).andExpect(status().isOk()));
+
+            assertThat(policies).anySatisfy(p -> {
+                assertThat(p.get("id").asString()).isEqualTo(policy);
+                assertThat(p.get("openClaimNumber").asString()).isEqualTo(claimNumber);
+            });
         }
     }
 
