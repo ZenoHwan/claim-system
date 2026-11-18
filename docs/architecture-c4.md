@@ -45,7 +45,7 @@ C4Container
         ContainerDb(reportingDb, "reporting_db", "PostgreSQL", "claim_summary read model")
         ContainerDb(notificationDb, "notification_db", "PostgreSQL", "Notification inbox")
         ContainerDb(docs, "Document store", "Local volume (S3 later)", "Uploaded evidence files")
-        ContainerDb(cache, "Cache", "Redis", "Follow-ups per user and dashboard reports per market; cleared on change, 60 s expiry as a backstop")
+        ContainerDb(cache, "Cache and pub/sub", "Redis", "Cached Follow-ups, claim lists, queue and dashboard reports, cleared on change; a channel that carries live notifications to every notification-service instance")
     }
 
     Rel(claimant, spa, "Uses", "HTTPS")
@@ -58,7 +58,8 @@ C4Container
 
     Rel(claims, claimsDb, "Reads and writes", "JDBC")
     Rel(claims, docs, "Stores and serves files", "File I/O")
-    Rel(claims, cache, "Caches Follow-ups, clears them on each claim change", "RESP")
+    Rel(claims, cache, "Caches Follow-ups, claim lists and the queue; clears them on each claim change", "RESP")
+    Rel(notification, cache, "Publishes each new notification and subscribes to the channel", "RESP pub/sub")
     Rel(reporting, cache, "Caches reports, clears a market on each event", "RESP")
     Rel(claims, kafka, "Publishes from outbox", "Kafka")
     Rel(kafka, reporting, "Consumed by", "Kafka")
@@ -79,7 +80,7 @@ C4Container
 | Database per service | No hidden coupling through shared tables | No cross-service joins; data is duplicated in read models |
 | JWT issued by claims-service, verified by each service | Every service checks identity itself; no shared session | Identity lives in claims-service for now; a dedicated identity provider is future work |
 | No API gateway yet | nginx in the frontend container routes `/api` by path, so the browser talks to one origin | A gateway is needed before production for TLS and rate limits |
-| Redis for two hot reads only | Follow-ups (every page change, every user) and the dashboard aggregates grow with usage; each is cleared when its data changes | One more container; everything else reads PostgreSQL directly so no other screen can go stale |
+| Redis for the hot reads and for live push | Follow-ups, claim lists, the queue and the dashboard aggregates grow with usage and are cleared when their data changes; a Redis channel carries each notification to every notification-service instance | One more container; the claim detail page still reads PostgreSQL directly so it can never be stale |
 
 ## Local runtime
 

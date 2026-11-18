@@ -140,9 +140,10 @@ sequenceDiagram
     RS-->>UI: reserve by market and line (as of last event)
 ```
 
-## 4. Cached reads: Follow-ups and dashboard reports
+## 4. Redis: cached reads and live push across instances
 
-The two reads that grow with usage go through Redis. A change clears the affected entries after it
+The reads that grow with usage (Follow-ups, each person's claim list, each market's queue and the
+dashboard reports) go through Redis. A change clears the affected entries after it
 commits, so the next read is rebuilt from PostgreSQL; the 60-second expiry is only a backstop. If
 Redis does not answer within 500 ms, the error is logged and PostgreSQL answers.
 
@@ -169,9 +170,36 @@ sequenceDiagram
     U->>UI: Reply, assess, approve...
     UI->>CS: POST (any claim change)
     CS->>DB: claim, history, outbox (one transaction)
-    CS->>R: after commit: DEL followUps::{claimant}, followUps::{officer}
+    CS->>R: after commit: DEL followUps and claim lists of the<br/>claimant and officer, and queue::{market}
 
     note over CS,R: reporting-service does the same for its reports:<br/>each applied event clears workload::{market},<br/>performance::{market} and exposure::all
+```
+
+Live notifications use the same Redis as a channel. Kafka gives each event to one instance of
+`notification-service`; the channel carries the stored notification to all of them, so the user
+gets it whichever instance holds their connection.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant K as Kafka claim-events
+    participant N1 as notification-service A
+    participant DB as notification_db
+    participant R as Redis channel
+    participant N2 as notification-service B
+    actor U as User connected to B
+
+    K->>N1: InformationRequested (one instance receives it)
+    N1->>DB: insert notification (once)
+    N1->>R: PUBLISH claim-notifications
+    par every instance
+        R-->>N1: notification
+        N1->>N1: push to its own connections (none for this user)
+    and
+        R-->>N2: notification
+        N2-->>U: SSE push
+    end
+    note over N1,R: If Redis is down, A pushes to its own connections only.<br/>The notification is in the inbox either way.
 ```
 
 ## 5. Future: payment as its own service

@@ -122,11 +122,14 @@ The Follow-ups lists for claimants and staff, and the counts on their tabs, come
 Bean Validation on the request records, plus a market check for postal codes (5 digits MY, 6 SG). Free text is trimmed and collapsed and plates are normalised (`dua1234` to `DUA 1234`) before validation and storage. Errors list every failing field. The form applies the same rules so each field explains itself.
 - *Alternative: form-only checks.* Rejected: the API is the trust boundary.
 
-### D20. Redis for the two reads that grow with usage
-Follow-ups (fetched by every user on every page change, a query per claim) are cached per user in `claims-service`; workload and performance per market and exposure once in `reporting-service`. Entries are typed JSON with a 60-second expiry. `ClaimChanges.record`, the one path for every claim change, clears the claimant's and officer's Follow-ups after commit; the reporting projector clears the event's market (and exposure) after commit. Cache errors are logged and the database answers, with a 500 ms Redis timeout. Static bundles are cached by the browser for a year; API responses stay `no-store`.
-- *Alternative: cache claim details, lists and the queue as well.* Rejected: they change on almost every action, and every extra cache is a place a missed eviction shows stale claim data.
+### D20. Redis for the reads that grow with usage, and for live push
+**Cache.** In `claims-service`: Follow-ups per user (fetched on every page change, a query per claim), each claimant's and each officer's claim list, and each market's unassigned queue. In `reporting-service`: workload and performance per market and exposure once. Entries are typed JSON with a 60-second expiry. `ClaimChanges.record`, the one path for every claim change, clears the claimant's and officer's Follow-ups and lists and the market's queue after commit; the reporting projector clears the event's market (and exposure) after commit. Cache errors are logged and the database answers, with a 500 ms Redis timeout. Static bundles are cached by the browser for a year; API responses stay `no-store`.
+
+**Pub/sub.** Kafka gives each event to one `notification-service` instance. That instance stores the notification, then publishes it on the `claim-notifications` channel; every instance subscribes and pushes to its own connections. If the publish fails, the instance pushes to its own connections only and remembers the notification so a late arrival is not pushed twice.
+- *Alternative: cache the claim detail as well.* Rejected: it is where the current status matters most, and document uploads change it outside `ClaimChanges.record`, so it needs a second eviction point.
 - *Alternative: expiry only, no eviction.* Rejected: an officer would wait up to a minute to see a reply.
-- *Alternative: no cache.* Defensible at demo scale; dropped once the system is sized for many users.
+- *Alternative: a consumer group per notification instance.* Every instance would then store every notification; pub/sub keeps one writer and many pushers.
+- *Alternative: no Redis.* Defensible at demo scale; dropped once the system is sized for many users.
 
 ### D21. End-to-end tests against the real stack
 Playwright drives a claimant and an officer in separate browsers through the Docker stack. A dedicated e2e claimant is created on first run, and each test copies a fresh policy for it straight into PostgreSQL, so tests run in parallel and never depend on earlier runs.
@@ -143,7 +146,7 @@ Playwright drives a claimant and an officer in separate browsers through the Doc
 - [Snapshot events couple consumers to the claim's shape] → Events are defined in one module and consumers ignore unknown fields.
 - [Polling relay adds up to a second of delay and constant light database load] → Acceptable at this scale; change data capture is the upgrade path.
 - [Local-disk documents do not survive a multi-instance deployment] → Storage sits behind one small class so that a bucket can replace it.
-- [Live push holds connections in memory, so it works with one notification-service instance only] → Accepted for now; pub/sub on the Redis already running is the upgrade path.
+- [Redis is one more thing that can be down] → No service needs it to start or to answer: cached reads fall back to PostgreSQL, live push falls back to the handling instance's own connections, and notification-service retries its subscription every five seconds until Redis is there.
 - [A read that started before a change commits can cache the old value] → Bounded by the 60-second expiry; marked in the code.
 - [Validation rules exist in Java and TypeScript] → Integration tests and the Playwright suite check both.
 

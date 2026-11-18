@@ -54,7 +54,7 @@ one origin.
 | `notification-service` | 8082 |
 | `postgres` (`claims_db`, `reporting_db`, `notification_db`) | 5433 |
 | `kafka` | 9092 |
-| `redis` (cache for Follow-ups and dashboard reports) | 6379 |
+| `redis` (cache for Follow-ups, claim lists, the queue and dashboard reports; pub/sub for live notifications) | 6379 |
 
 After changing code, rebuild just that part, for example `docker compose up -d --build claims-service`.
 To wipe all data: `docker compose down -v`.
@@ -115,7 +115,7 @@ Use two browser windows (one normal, one private) so both sessions stay signed i
 
 ## What is built and what is not
 
-Built: sign-in through two doors, a Redis cache for the Follow-ups lists and dashboard reports, the full claim lifecycle from submission to settlement or
+Built: sign-in through two doors, a Redis cache for the hot reads and Redis pub/sub for live notifications across instances, the full claim lifecycle from submission to settlement or
 rejection, information requests, document upload, a thin payment record, event publishing through
 a transactional outbox, workload / performance / exposure reporting, and live in-app notifications.
 
@@ -283,34 +283,44 @@ was not, what the choice costs, and what would change it. The decision record is
 - **Cost:** each rule exists twice, in Java and TypeScript. Integration tests and the Playwright
   suite keep the two in step.
 
-### Redis for two hot reads, not a cache on everything
+### Redis for the hot reads and live push, not a cache on everything
 
-- **Chose:** two reads are cached in Redis, the ones that grow with usage:
-  - **Follow-ups**, per user. Every signed-in user fetches it on every page change, and it costs a
-    query per claim the user has.
-  - **Dashboard reports**: workload and performance per market, exposure once. Each aggregates over
-    every claim in the read model.
+- **Chose:** Redis does two jobs.
+  - **Cache** for the reads that grow with usage:
+    - Follow-ups, per user: every signed-in user fetches it on every page change, and it costs a
+      query per claim the user has.
+    - Each person's claim list (My claims for a claimant, My claims for an officer) and each
+      market's unassigned queue.
+    - Dashboard reports: workload and performance per market, exposure once. Each aggregates over
+      every claim in the read model.
+  - **Pub/sub** for live notifications. Kafka hands each event to one `notification-service`
+    instance; that instance stores the notification and publishes it on a Redis channel, and every
+    instance pushes it to the users connected to it. Live push therefore works with any number of
+    instances.
 - **Kept current by eviction, not by waiting:** every claim change goes through one method
-  (`ClaimChanges.record`), which clears the cached Follow-ups of that claim's claimant and officer
-  once the change commits. Reporting clears a market's reports when it applies an event for that
-  market (exposure on every event). The next read rebuilds the entry from PostgreSQL. A 60-second
-  expiry is only a backstop.
-- **Why not cache claim details, lists or the queue too:** they change on almost every action, and
-  each one cached is one more place a missed eviction shows an officer an old status or a claimant
-  an old payment. In a claims workflow, wrong data costs more than a few milliseconds.
+  (`ClaimChanges.record`). Once the change commits, it clears what shows that claim: the claimant's
+  and officer's Follow-ups and claim lists, and the market's queue. Reporting clears a market's
+  reports when it applies an event for that market (exposure on every event). The next read
+  rebuilds the entry from PostgreSQL. A 60-second expiry is only a backstop.
+- **Why not cache the claim detail page too:** it is where an officer or claimant most needs the
+  current status, and it has a second way to change (document uploads), so a second place to forget
+  an eviction. In a claims workflow, wrong data costs more than a few milliseconds.
 - **Why not `@Cacheable` with Java serialisation:** entries are typed JSON (readable with
   `redis-cli`), and nothing but the expected record type is ever built from them.
-- **If Redis is down:** the error is logged and the database answers; a request waits at most the
-  500 ms Redis timeout. Tests pause the Redis container to prove it.
+- **If Redis is down:** cache errors are logged and the database answers; a request waits at most
+  the 500 ms Redis timeout. Live notifications are pushed to the users connected to the instance
+  that handled the event, and a publish that timed out but arrives later is not pushed twice.
+  Every notification is in the inbox either way. Tests pause the Redis container to prove both.
+  No service needs Redis to start: `notification-service` retries its subscription every five
+  seconds until Redis is there.
 - **Cost:** one more container, and a read that started just before a change can put the old value
   back for up to the expiry (marked `ponytail:` in the code). Redis runs as a pure cache: no
   persistence, 256 MB, least recently used keys dropped first.
 - **Also cached:** the browser keeps the JavaScript and CSS bundles for a year, because every file
   name carries a content hash; `index.html` is revalidated on each load so a deploy shows up at
   once. API responses stay `no-store` (the Spring Security default).
-- **Next uses of the same Redis:** pub/sub so live push works across several `notification-service`
-  instances (today each holds its connections in memory), sign-in rate limiting across instances,
-  and a shared list of revoked tokens.
+- **Next uses of the same Redis:** sign-in rate limiting across instances and a shared list of
+  revoked tokens.
 
 ### End-to-end tests against the real stack, not a mocked API
 
@@ -328,9 +338,8 @@ In rough order of value:
    pipeline. Today the tests run locally.
 2. **Identity.** An identity provider (Keycloak or the insurer's own) with asymmetric keys, refresh
    tokens, sign-in rate limiting and MFA for staff.
-3. **Ready to scale out.** Redis pub/sub (on the Redis already running) for live push across
-   notification instances, documents in
-   S3 behind the existing storage class, and change data capture in place of the polling relay.
+3. **Ready to scale out.** Documents in S3 behind the existing storage class, change data capture
+   in place of the polling relay, and a load test with several instances of each service.
 4. **Operations.** An admin view to inspect and replay dead letters; retention jobs for published
    outbox rows and read notifications; tracing across REST and Kafka keyed by claim id; alerts on
    outbox and consumer lag.
@@ -347,9 +356,9 @@ In rough order of value:
 | Module | Tests | Covers |
 |---|---|---|
 | `claim-events` | 10 | JSON round trip of every event type, unknown fields ignored |
-| `claims-service` | 104 | sign-in, roles, every state transition, concurrency, field validation and clean-up, documents, payment, follow-ups and their cache (including Redis down), policy detail, outbox relay incl. a broker outage |
+| `claims-service` | 105 | sign-in, roles, every state transition, concurrency, field validation and clean-up, documents, payment, follow-ups, the cached lists and queue (including Redis down), policy detail, outbox relay incl. a broker outage |
 | `reporting-service` | 27 | projection, duplicate and stale events, dead-lettering, the three reports and their cache (including Redis down) |
-| `notification-service` | 25 | event-to-notification rules, inbox, mark all read, live stream, duplicate delivery |
+| `notification-service` | 27 | event-to-notification rules, inbox, mark all read, live stream across instances (including Redis down), duplicate delivery |
 
 | `frontend` (Playwright, end to end) | 15 | both sign-in doors, route guards, password toggle, policy list and detail, every claim form rule, draft restore, a motor claim from submission through a question and reply to settlement, a property claim rejected with a reason, live badges and bell |
 
