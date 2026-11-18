@@ -384,7 +384,7 @@ export interface components {
             /** Format: date */
             incidentDate: string;
             incidentDescription: string;
-            claimedAmount: number;
+            claimedAmount?: number;
             motor?: components["schemas"]["Motor"];
             property?: components["schemas"]["Property"];
         };
@@ -439,6 +439,9 @@ export interface components {
             effectiveFrom?: string;
             /** Format: date */
             effectiveTo?: string;
+            /** Format: uuid */
+            openClaimId?: string;
+            openClaimNumber?: string;
         };
     };
     responses: never;

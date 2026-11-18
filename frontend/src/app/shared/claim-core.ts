@@ -31,7 +31,13 @@ import { statusLabel } from './status-chip';
             <dt>Incident date</dt>
             <dd>{{ c.incidentDate | date: 'd MMM y' }}</dd>
             <dt>Claimed</dt>
-            <dd class="amount">{{ c.claimedAmount | currency: c.currency : 'code' }}</dd>
+            <dd class="amount">
+              @if (c.claimedAmount != null) {
+                {{ c.claimedAmount | currency: c.currency : 'code' }}
+              } @else {
+                Not stated
+              }
+            </dd>
             @if (c.currentReserve !== undefined) {
               <dt>Reserve</dt>
               <dd class="amount">{{ c.currentReserve | currency: c.currency : 'code' }}</dd>

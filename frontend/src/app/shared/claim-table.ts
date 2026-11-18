@@ -43,7 +43,11 @@ import { StatusChip } from './status-chip';
           <ng-container matColumnDef="claimed">
             <th mat-header-cell *matHeaderCellDef>Claimed</th>
             <td mat-cell *matCellDef="let claim" class="amount">
-              {{ claim.claimedAmount | currency: claim.currency : 'code' }}
+              @if (claim.claimedAmount != null) {
+                {{ claim.claimedAmount | currency: claim.currency : 'code' }}
+              } @else {
+                Not stated
+              }
             </td>
           </ng-container>
           <ng-container matColumnDef="status">

@@ -1,10 +1,12 @@
 import { CurrencyPipe, DatePipe } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, afterNextRender, computed, inject, signal, viewChild } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MAT_DATE_LOCALE, provideNativeDateAdapter } from '@angular/material/core';
+import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
@@ -18,6 +20,8 @@ import { applyFieldErrors, problemMessage } from '../core/http';
 /** Report an incident in five steps: policy, incident, line-specific details, documents, review. */
 @Component({
   selector: 'app-new-claim',
+  // day/month/year, as claimants in these markets write dates
+  providers: [provideNativeDateAdapter(), { provide: MAT_DATE_LOCALE, useValue: 'en-GB' }],
   imports: [
     CurrencyPipe,
     DatePipe,
@@ -25,6 +29,7 @@ import { applyFieldErrors, problemMessage } from '../core/http';
     RouterLink,
     MatButtonModule,
     MatCheckboxModule,
+    MatDatepickerModule,
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
@@ -35,21 +40,32 @@ import { applyFieldErrors, problemMessage } from '../core/http';
     <main class="page">
       <div class="page-head">
         <h1>New claim</h1>
-        <a matButton routerLink="/claims">Cancel</a>
+        <a matButton routerLink="/claims" (click)="clearDraft()">Cancel</a>
       </div>
 
-      <mat-stepper linear #stepper [formGroup]="form">
+      @if (restored()) {
+        <p class="muted" role="status">
+          Your draft was restored. Any files you had attached need to be added again.
+        </p>
+      }
+
+      <mat-stepper linear #stepper [formGroup]="form" (selectionChange)="saveDraft($event.selectedIndex)">
         <mat-step label="Policy" [stepControl]="form.controls.policyId">
           <div class="stack step">
             <mat-form-field>
               <mat-label>Which policy is this claim against?</mat-label>
               <mat-select formControlName="policyId">
                 @for (p of policies(); track p.id) {
-                  <mat-option [value]="p.id">
+                  <!-- one claim at a time per policy; the server enforces this too -->
+                  <mat-option [value]="p.id" [disabled]="!!p.openClaimNumber">
                     {{ p.policyNumber }} · {{ p.lineOfBusiness === 'MOTOR' ? 'Motor' : 'Property' }}
+                    @if (p.openClaimNumber) {
+                      · claim {{ p.openClaimNumber }} in progress
+                    }
                   </mat-option>
                 }
               </mat-select>
+              <mat-hint>A policy can have one claim in progress at a time.</mat-hint>
             </mat-form-field>
             @if (policy(); as p) {
               <p class="muted">
@@ -68,11 +84,15 @@ import { applyFieldErrors, problemMessage } from '../core/http';
           <div class="stack step" formGroupName="incident">
             <mat-form-field>
               <mat-label>Date of incident</mat-label>
-              <input matInput #incidentDate type="date" formControlName="incidentDate" [max]="today" />
-              <!-- ponytail: opens the browser's own calendar; no date library or adapter needed -->
-              <button matIconButton matSuffix type="button" aria-label="Open calendar" (click)="incidentDate.showPicker()">
-                <mat-icon aria-hidden="true">calendar_today</mat-icon>
-              </button>
+              <input
+                matInput
+                [matDatepicker]="datePicker"
+                formControlName="incidentDate"
+                [max]="today"
+                placeholder="dd/mm/yyyy"
+              />
+              <mat-datepicker-toggle matIconSuffix [for]="datePicker" />
+              <mat-datepicker #datePicker />
               @if (form.controls.incident.controls.incidentDate.errors?.['server']; as message) {
                 <mat-error>{{ message }}</mat-error>
               }
@@ -82,7 +102,7 @@ import { applyFieldErrors, problemMessage } from '../core/http';
               <textarea matInput rows="4" formControlName="incidentDescription"></textarea>
             </mat-form-field>
             <mat-form-field>
-              <mat-label>Amount claimed ({{ policy()?.currency }})</mat-label>
+              <mat-label>Estimated loss ({{ policy()?.currency }}), if known</mat-label>
               <input
                 matInput
                 type="number"
@@ -90,6 +110,7 @@ import { applyFieldErrors, problemMessage } from '../core/http';
                 step="0.01"
                 formControlName="claimedAmount"
               />
+              <mat-hint>Optional. Leave blank if you do not have a quote yet.</mat-hint>
             </mat-form-field>
             <div class="row">
               <button matButton matStepperPrevious type="button">Back</button>
@@ -184,8 +205,14 @@ import { applyFieldErrors, problemMessage } from '../core/http';
                 <dd>{{ p.policyNumber }}</dd>
                 <dt>Incident date</dt>
                 <dd>{{ incident.incidentDate | date: 'd MMM y' }}</dd>
-                <dt>Amount claimed</dt>
-                <dd>{{ incident.claimedAmount | currency: p.currency : 'code' }}</dd>
+                <dt>Estimated loss</dt>
+                <dd>
+                  @if (incident.claimedAmount !== null) {
+                    {{ incident.claimedAmount | currency: p.currency : 'code' }}
+                  } @else {
+                    Not stated
+                  }
+                </dd>
                 <dt>What happened</dt>
                 <dd>{{ incident.incidentDescription }}</dd>
                 <dt>Documents</dt>
@@ -234,15 +261,15 @@ export class NewClaim {
   private readonly router = inject(Router);
   private readonly fb = inject(FormBuilder).nonNullable;
 
-  protected readonly today = new Date().toISOString().slice(0, 10);
+  protected readonly today = new Date();
   protected readonly lossCauses: LossCause[] = ['FIRE', 'WATER', 'THEFT', 'STORM', 'OTHER'];
 
   protected readonly form = this.fb.group({
     policyId: ['', Validators.required],
     incident: this.fb.group({
-      incidentDate: ['', Validators.required],
+      incidentDate: [null as Date | null, Validators.required],
       incidentDescription: ['', Validators.required],
-      claimedAmount: [null as number | null, [Validators.required, Validators.min(0.01)]],
+      claimedAmount: [null as number | null, Validators.min(0.01)],
     }),
     motor: this.fb.group({
       vehicleRegistration: ['', Validators.required],
@@ -268,8 +295,60 @@ export class NewClaim {
   protected readonly error = signal('');
   protected readonly busy = signal(false);
 
+  private readonly stepper = viewChild.required(MatStepper);
+  private step = 0;
+  protected readonly restored = signal(false);
+
   constructor() {
     this.api.policies().subscribe((policies) => this.policies.set(policies));
+    this.restoreDraft();
+    this.form.valueChanges.subscribe(() => this.saveDraft(this.step));
+  }
+
+  /**
+   * A refresh must not throw away what the claimant has typed. The draft lives in sessionStorage,
+   * so it ends with the tab and never outlives the sign-in. Files cannot be stored and are re-added.
+   */
+  protected saveDraft(step: number) {
+    this.step = step;
+    const value = this.form.getRawValue();
+    const draft = {
+      step,
+      value: { ...value, incident: { ...value.incident, incidentDate: isoDate(value.incident.incidentDate) } },
+    };
+    sessionStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+  }
+
+  protected clearDraft() {
+    sessionStorage.removeItem(DRAFT_KEY);
+  }
+
+  private restoreDraft() {
+    const stored = sessionStorage.getItem(DRAFT_KEY);
+    if (!stored) {
+      return;
+    }
+    const { step, value } = JSON.parse(stored);
+    const date = value.incident.incidentDate;
+    this.form.patchValue({
+      ...value,
+      incident: { ...value.incident, incidentDate: date ? new Date(date + 'T00:00:00') : null },
+    });
+    this.restored.set(true);
+    // A linear stepper only lets you stand on a step whose earlier steps were visited and are valid.
+    afterNextRender(() => {
+      const stepper = this.stepper();
+      const steps = stepper.steps.toArray();
+      const { policyId, incident, motor, property } = this.form.controls;
+      // policy, incident, details (whichever line applies), documents (optional)
+      const valid = [policyId.valid, incident.valid, motor.valid || property.valid, true];
+      let reachable = 0;
+      while (reachable < step && valid[reachable]) {
+        steps[reachable].interacted = true;
+        reachable++;
+      }
+      stepper.selectedIndex = reachable;
+    });
   }
 
   protected addFiles(picked: FileList | null) {
@@ -291,9 +370,9 @@ export class NewClaim {
     const { policyId, incident, motor, property } = this.form.getRawValue();
     const request: SubmitClaimRequest = {
       policyId,
-      incidentDate: incident.incidentDate,
+      incidentDate: isoDate(incident.incidentDate)!,
       incidentDescription: incident.incidentDescription,
-      claimedAmount: incident.claimedAmount!,
+      claimedAmount: incident.claimedAmount ?? undefined,
       ...(this.isMotor()
         ? { motor }
         : { property: { ...property, lossCause: property.lossCause as LossCause } }),
@@ -312,7 +391,10 @@ export class NewClaim {
         ),
       )
       .subscribe({
-        next: (claim) => void this.router.navigate(['/claims', claim.id]),
+        next: (claim) => {
+          this.clearDraft();
+          void this.router.navigate(['/claims', claim.id]);
+        },
         error: (error) => {
           this.busy.set(false);
           this.error.set(problemMessage(error));
@@ -324,4 +406,15 @@ export class NewClaim {
         },
       });
   }
+}
+
+const DRAFT_KEY = 'new-claim-draft';
+
+/** yyyy-MM-dd in local time: the day the claimant picked, not shifted by a UTC conversion. */
+function isoDate(date: Date | null): string | null {
+  if (!date) {
+    return null;
+  }
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
