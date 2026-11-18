@@ -28,8 +28,8 @@ and outstanding exposure.
 
 ## Start
 
-1. Infrastructure: PostgreSQL on host port **5433** (databases `claims_db`,
-   `reporting_db`, `notification_db`) and Kafka on **9092**.
+1. **Infrastructure.** PostgreSQL on host port **5433** (databases `claims_db`,
+   `reporting_db`, `notification_db`) and Kafka on **9092**:
 
    ```bash
    docker compose up -d
@@ -37,13 +37,72 @@ and outstanding exposure.
 
    Wait until `docker compose ps` shows both as `healthy`.
 
-2. Build and test everything (integration tests start their own containers):
+2. **Build and test** (integration tests start their own PostgreSQL and Kafka
+   containers, so Docker must be running):
 
    ```bash
    ./mvnw verify
    ```
 
-To wipe local data: `docker compose down -v`.
+3. **Run the three services**, each in its own terminal:
+
+   ```bash
+   java -jar claims-service/target/claims-service-0.0.1-SNAPSHOT.jar
+   ```
+
+   ```bash
+   java -jar reporting-service/target/reporting-service-0.0.1-SNAPSHOT.jar
+   ```
+
+   ```bash
+   java -jar notification-service/target/notification-service-0.0.1-SNAPSHOT.jar
+   ```
+
+4. **Run the frontend** (Node 22):
+
+   ```bash
+   cd frontend && npm install --legacy-peer-deps && npm start
+   ```
+
+   Open http://localhost:4200/login (claimants) or
+   http://localhost:4200/admin/login (staff).
+
+To wipe local data: `docker compose down -v` and delete `data/`.
+
+## A five-minute walkthrough
+
+Use two browser windows (one normal, one private) so both sessions stay signed in.
+
+1. Claimant `aisha@claims.test` at `/login`: **New claim**, pick the motor policy, attach a photo, submit.
+2. Officer `officer1.my@claims.test` at `/admin/login`: **Queue**, **Pick up**, then **Request information**.
+   The claimant's bell updates without a refresh.
+3. Claimant: reply with a PDF. The officer's bell updates.
+4. Officer: **Assess**, **Approve**, **Record payment**. The claimant sees each step live.
+5. Manager `manager.my@claims.test`: **Dashboard**. Exposure rises on submission, changes on
+   assessment and drops on settlement.
+6. Resilience: `docker compose stop kafka`, submit another claim (it is accepted),
+   `docker compose start kafka`, and watch the dashboard catch up.
+
+## What is built and what is not
+
+Built: sign-in through two doors, the full claim lifecycle from submission to settlement or
+rejection, information requests, document upload, a thin payment record, event publishing through
+a transactional outbox, workload / performance / exposure reporting, and live in-app notifications.
+
+Designed only (see `docs/`): manager sign-off above an authority limit, claimant withdrawal,
+payment execution through a bank, multiple payments per claim, currency conversion, real email,
+an API gateway, an identity provider. Known shortcuts are marked in the code with `ponytail:`.
+
+## Tests
+
+| Module | Tests | Covers |
+|---|---|---|
+| `claim-events` | 10 | JSON round trip of every event type, unknown fields ignored |
+| `claims-service` | 83 | sign-in, roles, every state transition, concurrency, documents, payment, outbox relay incl. a broker outage |
+| `reporting-service` | 25 | projection, duplicate and stale events, dead-lettering, the three reports |
+| `notification-service` | 24 | event-to-notification rules, inbox, live stream, duplicate delivery |
+
+The frontend has no automated tests; it was checked by hand in the browser.
 
 ## Seeded accounts (local demo data only)
 
