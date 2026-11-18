@@ -8,4 +8,4 @@ dist/
 .angular/
 .env
 # uploaded claim documents (local storage)
-/data/
+data/

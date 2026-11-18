@@ -5,6 +5,7 @@ services:
     environment:
       POSTGRES_USER: claims
       POSTGRES_PASSWORD: claims
+      POSTGRES_DB: claims_db # default db is claims_db, so no stray "claims" db
     ports:
       - "5433:5432" # 5433 on the host so it does not clash with a local PostgreSQL
     volumes:
