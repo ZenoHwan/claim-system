@@ -241,3 +241,31 @@ AI's work most often.
 **What I did:** I asked for the motor accident location and the property address to be captured as structured address fields with a postal code, instead of a single free-text field. When the AI asked whether to use three address lines or street, city and state, I chose three address lines, the common layout on Malaysian forms, which also suits Singapore.
 **AI then:** It introduced one shared `Address` (address lines 1 to 3 and postal code) for both claim types, used by the request, the database columns and the response. A Flyway migration (V7) renamed the existing column to `address_line1` and added the new columns, so existing claims keep their address as line 1. Line 1 and a 5 or 6 digit postal code are required and validated on both the server and the form. The tests were updated first and failed before the change, and all 94 claims-service tests then passed. The ER diagram and the generated frontend API types were updated.
 **Why:** Structured addresses with postal codes are what insurers need for assessing a location, detecting fraud and reporting by area. Migrating in place rather than recreating the tables preserved existing claims.
+
+### 29. Validating every field on the claim form
+
+**What I did:** After testing the New Claim form with deliberately poor input, I asked for proper validation and clean-up on every field, including the date, the vehicle registration and the postal code.
+**AI then:** It added the rules to the server first, test-first (three new tests failed before the change, and all 97 claims-service tests then passed), and mirrored them in the form so each field shows a specific message:
+- Incident date: must be a real dd/mm/yyyy date, within the policy's cover and not in the future. Letters cannot be typed into the field.
+- Description: at least 20 characters. Estimated loss: above zero with at most two decimal places.
+- Vehicle registration: Malaysian and Singaporean plate formats, stored in a standard form ("dua1234" becomes "DUA 1234").
+- Driver name and address lines: letters, digits and the punctuation names and addresses genuinely use.
+- Postal code: five digits for a Malaysian policy and six for a Singaporean one, checked against the policy's market on the server.
+- Free text is trimmed and repeated spaces are collapsed before it is validated and stored.
+**AI found while testing:** The date picker read typed dates month-first, so a valid date such as 16/11/2026 was rejected and 01/12/2026 was read as 12 January. It replaced the parser with a strict day/month/year one that also refuses impossible dates such as 31/02/2026.
+**Why:** Validation at the server protects data quality whatever the client sends; mirroring it in the form tells the customer exactly what to fix before they submit. Normalising plates and text keeps stored data consistent for search and fraud checks. Vanity plates are a known gap, recorded in the code.
+
+### 30. Failed reply with an attachment, and removing attached files
+
+**Asked:** Replying to an information request with a photo attached showed "Something went wrong", and I asked for attached files to be removable before sending.
+**AI said:** The photo was a valid, small PNG and the upload route worked, so the failure lined up with the moment it restarted claims-service for a deployment; the generic message hid that. It also found that a reply failing part-way would upload already-sent files again on retry.
+**AI then:** Each attached file now has a Remove button. Files leave the list as soon as they upload, so a retry never duplicates them. When the service cannot be reached, the message now says so and asks the user to try again, instead of "Something went wrong".
+**Why:** An error message should tell the user what to do next. Preventing duplicate uploads keeps the claim's documents clean for the officer reviewing them.
+
+### 31. Policy details and a Follow-ups tab for customers and staff
+
+**What I did:** I asked for customers to be able to open a policy and see its details, and for a Follow-ups tab in both the customer portal and the staff system, with a count, so that staff can see at a glance which follow-ups they have sent and which need their attention.
+**AI then:** It built both, test-first (five new tests failed before the change, and all 102 claims-service tests then passed):
+- **Policy details:** a new `GET /api/policies/{id}` returns the policy with every claim made on it. Customers open it from My Policies to see the type, status, cover period, sum insured, market and claim history, with "Make a claim" offered when no claim is in progress. Another customer's policy returns 404.
+- **Follow-ups:** a customer's tab lists the questions waiting for their reply. A staff member's tab lists replies they have not yet acted on, and the questions they sent that are still waiting for the claimant. The number on the tab counts what that person must act on: unanswered questions for a customer, replies to review for staff. A follow-up clears itself when the claim moves on (the customer replies, or the officer assesses or asks again), so there is no separate status to maintain. The count refreshes on navigation and when a live notification arrives.
+**Why:** Information requests are where claims stall. Making them visible, with a count, means neither side has to remember to check each claim, which shortens the time a claim waits. Deriving the follow-up state from the claim and its latest question keeps it accurate without adding data that could drift.
