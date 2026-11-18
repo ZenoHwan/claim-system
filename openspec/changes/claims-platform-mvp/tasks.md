@@ -4,10 +4,10 @@ Working rules for every group: write the failing test first for anything with lo
 
 ## 1. Repository and local environment
 
-- [ ] 1.1 Install JDK 21 and add the Maven wrapper; verify `./mvnw -v` reports Java 21
-- [ ] 1.2 Create the parent POM with modules `claim-events`, `claims-service`, `reporting-service`, `notification-service`; verify `./mvnw -q verify` succeeds on empty modules
-- [ ] 1.3 Add `docker-compose.yml` with PostgreSQL (databases `claims_db`, `reporting_db`, `notification_db`) and Kafka, each with a health check; verify `docker compose up -d` reaches healthy and all three databases accept a connection
-- [ ] 1.4 Add a README with prerequisites and start order; verify a clean checkout can follow it to a running compose stack
+- [x] 1.1 Install JDK 21 and add the Maven wrapper; verify `./mvnw -v` reports Java 21
+- [x] 1.2 Create the parent POM with modules `claim-events`, `claims-service`, `reporting-service`, `notification-service`; verify `./mvnw -q verify` succeeds on empty modules
+- [x] 1.3 Add `docker-compose.yml` with PostgreSQL (databases `claims_db`, `reporting_db`, `notification_db`) and Kafka, each with a health check; verify `docker compose up -d` reaches healthy and all three databases accept a connection
+- [x] 1.4 Add a README with prerequisites and start order; verify a clean checkout can follow it to a running compose stack
 
 ## 2. Event contract (`claim-events`)
 
