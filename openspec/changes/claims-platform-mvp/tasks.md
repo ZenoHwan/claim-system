@@ -75,13 +75,13 @@ Working rules for every group: write the failing test first for anything with lo
 
 ## 10. Angular application
 
-- [ ] 10.1 Scaffold the Angular app with Angular Material, the dev proxy to the three services, and API clients generated from the three OpenAPI documents; verify `ng build` succeeds
-- [ ] 10.2 Build `/login` and `/admin/login`, token storage, an HTTP interceptor and role guards for `/claims/**` and `/admin/**`; verify in the browser that each seeded role lands in its own area and is refused at the other door
-- [ ] 10.3 Build the claimant claims list and the new-claim stepper (policy, incident, line-specific details, documents, review); verify a claim can be submitted with a photo and appears in the list
-- [ ] 10.4 Build the claimant claim detail (timeline, information-request reply with upload, decision and payment status); verify a reply returns the claim to under review
-- [ ] 10.5 Build the staff queue, my-claims list and claim workbench (request information, assess, approve or reject, record payment, document download); verify a claim can be taken from pick-up to settled, and that a lost pick-up race shows a clear message
-- [ ] 10.6 Build the notification bell with the SSE stream; verify a claimant with the page open sees the badge change when an officer requests information
-- [ ] 10.7 Build the manager dashboard (workload, performance, exposure, as-of time); verify the figures change after a claim is assessed and settled
+- [x] 10.1 Scaffold the Angular app with Angular Material, the dev proxy to the three services, and API clients generated from the three OpenAPI documents; verify `ng build` succeeds
+- [x] 10.2 Build `/login` and `/admin/login`, token storage, an HTTP interceptor and role guards for `/claims/**` and `/admin/**`; verify in the browser that each seeded role lands in its own area and is refused at the other door
+- [x] 10.3 Build the claimant claims list and the new-claim stepper (policy, incident, line-specific details, documents, review); verify a claim can be submitted with a photo and appears in the list
+- [x] 10.4 Build the claimant claim detail (timeline, information-request reply with upload, decision and payment status); verify a reply returns the claim to under review
+- [x] 10.5 Build the staff queue, my-claims list and claim workbench (request information, assess, approve or reject, record payment, document download); verify a claim can be taken from pick-up to settled, and that a lost pick-up race shows a clear message
+- [x] 10.6 Build the notification bell with the SSE stream; verify a claimant with the page open sees the badge change when an officer requests information
+- [x] 10.7 Build the manager dashboard (workload, performance, exposure, as-of time); verify the figures change after a claim is assessed and settled
 
 ## 11. End-to-end check
 

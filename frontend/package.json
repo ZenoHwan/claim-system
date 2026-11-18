@@ -1,0 +1,35 @@
+{
+  "name": "frontend",
+  "version": "0.0.0",
+  "scripts": {
+    "ng": "ng",
+    "start": "ng serve",
+    "build": "ng build",
+    "watch": "ng build --watch --configuration development",
+    "test": "ng test",
+    "api:fetch": "curl -sf http://localhost:8080/v3/api-docs -o openapi/claims.json && curl -sf http://localhost:8081/v3/api-docs -o openapi/reporting.json && curl -sf http://localhost:8082/v3/api-docs -o openapi/notification.json",
+    "api:generate": "openapi-typescript openapi/claims.json -o src/app/api/generated/claims.ts && openapi-typescript openapi/reporting.json -o src/app/api/generated/reporting.ts && openapi-typescript openapi/notification.json -o src/app/api/generated/notification.ts"
+  },
+  "private": true,
+  "packageManager": "npm@10.9.8",
+  "dependencies": {
+    "@angular/cdk": "^22.2.7",
+    "@angular/common": "^22.2.0",
+    "@angular/compiler": "^22.2.0",
+    "@angular/core": "^22.2.0",
+    "@angular/forms": "^22.2.0",
+    "@angular/material": "^22.2.7",
+    "@angular/platform-browser": "^22.2.0",
+    "@angular/router": "^22.2.0",
+    "rxjs": "~7.8.0",
+    "tslib": "^2.3.0"
+  },
+  "devDependencies": {
+    "@angular/build": "^22.2.7",
+    "@angular/cli": "^22.2.7",
+    "@angular/compiler-cli": "^22.2.0",
+    "openapi-typescript": "^7.13.0",
+    "prettier": "^3.8.1",
+    "typescript": "~6.0.2"
+  }
+}

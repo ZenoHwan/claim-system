@@ -1,0 +1,204 @@
+{
+    "openapi": "3.1.0",
+    "info": {
+        "title": "OpenAPI definition",
+        "version": "v0"
+    },
+    "servers": [
+        {
+            "url": "http://localhost:8081",
+            "description": "Generated server url"
+        }
+    ],
+    "paths": {
+        "/api/reports/workload": {
+            "get": {
+                "tags": [
+                    "report-controller"
+                ],
+                "operationId": "workload",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Workload"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/reports/performance": {
+            "get": {
+                "tags": [
+                    "report-controller"
+                ],
+                "operationId": "performance",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Performance"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/reports/exposure": {
+            "get": {
+                "tags": [
+                    "report-controller"
+                ],
+                "operationId": "exposure",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Exposure"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "Ageing": {
+                "type": "object",
+                "properties": {
+                    "days0to2": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "days3to7": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "days8plus": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                }
+            },
+            "OfficerWorkload": {
+                "type": "object",
+                "properties": {
+                    "officerId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "officerName": {
+                        "type": "string"
+                    },
+                    "open": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "byStatus": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
+                    }
+                }
+            },
+            "Workload": {
+                "type": "object",
+                "properties": {
+                    "asOf": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "market": {
+                        "type": "string"
+                    },
+                    "openClaims": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "unassigned": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "officers": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/OfficerWorkload"
+                        }
+                    },
+                    "ageing": {
+                        "$ref": "#/components/schemas/Ageing"
+                    }
+                }
+            },
+            "Performance": {
+                "type": "object",
+                "properties": {
+                    "asOf": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "market": {
+                        "type": "string"
+                    },
+                    "decidedLast30Days": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "averageDaysToDecision": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                }
+            },
+            "Exposure": {
+                "type": "object",
+                "properties": {
+                    "asOf": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "rows": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ExposureRow"
+                        }
+                    }
+                }
+            },
+            "ExposureRow": {
+                "type": "object",
+                "properties": {
+                    "marketCode": {
+                        "type": "string"
+                    },
+                    "lineOfBusiness": {
+                        "type": "string"
+                    },
+                    "currency": {
+                        "type": "string"
+                    },
+                    "openClaims": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "outstandingReserve": {
+                        "type": "number"
+                    }
+                }
+            }
+        }
+    }
+}
