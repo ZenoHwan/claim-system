@@ -101,3 +101,65 @@ and it changed. **Overrode** = AI recommended one thing, I went the other way.
 - JWT signed with a shared key across the three services (it flagged this as a shortcut).
 - The Mermaid diagrams in `docs/` have not been rendered yet.
 - All the spec files under `openspec/changes/claims-platform-mvp/` — read them properly before building.
+
+---
+
+## 18 Nov 2026 — Build session
+
+Said "start building" and let the AI run through the task list. Entries below are
+what it did and decided along the way. Most of these were the AI's calls, not
+mine, so I need to go through them properly.
+
+### 13. Java and Spring Boot versions
+
+**AI did:** My machine had JDK 17, 25 and 27 from Homebrew but not 21. It installed 21 because that is what we agreed, instead of quietly using 25. For Spring Boot it asked start.spring.io for the current version (4.1.2) and the real starter names rather than trusting memory. Boot 4 moved a lot of packages and uses Jackson 3, so it looked inside the jars when an import failed.
+**What I did:** Accepted.
+**Why:** _TODO_
+
+### 14. Building three things at once
+
+**AI did:** Once the event contract (`claim-events`) was fixed, it started separate AI agents for reporting-service, notification-service and later the Angular app, while it built claims-service itself. Each agent got a written brief with the fixed conventions (ports, JWT claims, topic, endpoints) and was told not to commit. The main AI re-ran each agent's tests itself and read the code before committing.
+**What I did:** AI's call. Not something I asked for.
+**To check:** read reporting-service and notification-service line by line, since I did not watch those being written.
+
+### 15. How TDD actually went (being honest here)
+
+Asked for strict red-green-refactor. What really happened:
+
+| Slice | Red step seen? |
+|---|---|
+| Event contract | Yes, but only a compile failure (classes did not exist yet) |
+| Sign-in and roles | Yes, properly: app booted, 10 of 12 tests failed on behaviour, then green |
+| State machine | Compile failure, then green |
+| Claim lifecycle (submit, pick up, assess, decide) | Yes: 30 HTTP tests failed with 404s before the code existed |
+| Info requests, documents, settlement | Yes: 32 tests red, then turned green group by group |
+| Outbox relay | Compile failure, then green (incl. the broker-outage test) |
+| reporting-service (agent) | One compile-failure red for the whole group, green on first run after |
+| notification-service (agent) | Tests written first, but the red run failed for a config reason, so no real behavioural red |
+
+So: tests always came before the code, but the commits are per feature slice
+(one red, one green), not one commit per tiny cycle, and there was almost no
+separate refactor commit. If the panel asks "was this strict TDD?", the honest
+answer is "test-first, coarse-grained".
+
+### 16. Things the AI changed from the design while building
+
+- **Extra columns on `claim`:** `current_reserve`, `decided_at`, `settled_at`. The ER diagram said "latest reserve row is current"; AI kept the reserve history table but also copies the current figure onto the claim so reads and events do not need a subquery. ER diagram updated.
+- **`CHAR(2)`/`CHAR(3)` became `VARCHAR`** for market and currency, because Hibernate schema validation rejected `CHAR`.
+- **PostgreSQL is on host port 5433**, since 5432 was already used by a local Postgres.
+- **Policy seed period runs to end of 2027**, so tests do not start failing in January.
+- **reporting and notification use plain JDBC, not JPA.** Their writes are upserts and aggregates.
+- **Claims-service puts information requests, documents and payment in the same Java package as claims** instead of separate packages, to avoid a package cycle.
+
+### 17. Behaviour the AI chose that I did not specify
+
+- Someone else's claim, policy or document returns **404, not 403**, so ids cannot be probed.
+- Sign-in fails with the **same response** for unknown account, wrong password and wrong door.
+- **Reserve and assessment are hidden from the claimant** (internal figures). Payment reference too.
+- Rejecting or approving checks the **status first**, then the amount.
+- The relay **stops at the first failed send** so later events cannot overtake an unpublished one.
+- Uploaded file type is read from the **first bytes of the file**, not the declared content type. Downloads are forced as attachments.
+- `/v3/api-docs` is **public** on all three services so the frontend can generate types.
+- Staff actions return **200 with the whole updated claim**, not 201 or 204.
+
+**Why (for all of 16 and 17):** _TODO — go through each, keep or change_
