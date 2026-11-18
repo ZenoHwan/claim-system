@@ -11,8 +11,8 @@ Working rules for every group: write the failing test first for anything with lo
 
 ## 2. Event contract (`claim-events`)
 
-- [ ] 2.1 Define the event envelope and claim snapshot records and the eight event types; verify a unit test round-trips each event type through JSON unchanged
-- [ ] 2.2 Verify by test that deserialising an event with an unknown extra field succeeds
+- [x] 2.1 Define the event envelope and claim snapshot records and the eight event types; verify a unit test round-trips each event type through JSON unchanged
+- [x] 2.2 Verify by test that deserialising an event with an unknown extra field succeeds
 
 ## 3. claims-service: foundation and identity
 
