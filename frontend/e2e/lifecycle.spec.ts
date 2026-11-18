@@ -14,8 +14,11 @@ import {
 // Both tests notify the same claimant, so they run one after the other to keep the bell checks exact.
 test.describe.configure({ mode: 'serial' });
 
-const next = (page: Page) =>
-  page.getByRole('button', { name: 'Next', exact: true }).filter({ visible: true }).click();
+// Typing while the stepper still slides can be lost, so wait for the slide to end.
+const next = async (page: Page) => {
+  await page.getByRole('button', { name: 'Next', exact: true }).filter({ visible: true }).click();
+  await page.waitForFunction(() => document.getAnimations().length === 0);
+};
 const field = (page: Page, label: string) => page.getByLabel(label).filter({ visible: true });
 const status = (page: Page) => page.locator('app-status-chip');
 const count = async (b: Locator) => ((await b.isVisible()) ? Number(await b.textContent()) : 0);

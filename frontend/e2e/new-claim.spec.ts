@@ -1,8 +1,11 @@
 import { Page, expect, test } from '@playwright/test';
 import { CLAIMANT, SEEDED, dayMonthYear, freshPolicy, signIn } from './support';
 
-const next = (page: Page) =>
-  page.getByRole('button', { name: 'Next', exact: true }).filter({ visible: true }).click();
+// Typing while the stepper still slides can be lost, so wait for the slide to end.
+const next = async (page: Page) => {
+  await page.getByRole('button', { name: 'Next', exact: true }).filter({ visible: true }).click();
+  await page.waitForFunction(() => document.getAnimations().length === 0);
+};
 const field = (page: Page, label: string) => page.getByLabel(label).filter({ visible: true });
 const error = (page: Page, label: string) =>
   page
