@@ -10,12 +10,15 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.UUID;
 
-/** Exactly one of {@code motor} / {@code property} is required, matching the policy's line of business. */
+/**
+ * {@code claimedAmount} is the claimant's own estimate and may be left out.
+ * Exactly one of {@code motor} / {@code property} is required, matching the policy's line of business.
+ */
 record SubmitClaimRequest(
         @NotNull UUID policyId,
         @NotNull @PastOrPresent LocalDate incidentDate,
         @NotBlank @Size(max = 4000) String incidentDescription,
-        @NotNull @Positive BigDecimal claimedAmount,
+        @Positive BigDecimal claimedAmount,
         @Valid Motor motor,
         @Valid Property property) {
 

@@ -7,9 +7,12 @@ import com.claims.service.policy.LineOfBusiness;
 import com.claims.service.policy.Policy;
 import com.claims.service.policy.PolicyRepository;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.Map;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,12 +38,15 @@ class ClaimService {
     private final ClaimRecords.Decisions decisions;
     private final SettlementService settlement;
     private final JdbcTemplate jdbc;
+    private final Map<LineOfBusiness, BigDecimal> defaultReserveRates;
 
     ClaimService(
             ClaimAccess access, ClaimChanges changes, PolicyRepository policies,
             ClaimRecords.MotorDetails motorDetails, ClaimRecords.PropertyDetails propertyDetails,
             ClaimRecords.Reserves reserves, ClaimRecords.Assessments assessments, ClaimRecords.Decisions decisions,
-            SettlementService settlement, JdbcTemplate jdbc) {
+            SettlementService settlement, JdbcTemplate jdbc,
+            @Value("${claims.reserve.default-rate.motor}") BigDecimal motorRate,
+            @Value("${claims.reserve.default-rate.property}") BigDecimal propertyRate) {
         this.access = access;
         this.changes = changes;
         this.policies = policies;
@@ -51,6 +57,7 @@ class ClaimService {
         this.decisions = decisions;
         this.settlement = settlement;
         this.jdbc = jdbc;
+        this.defaultReserveRates = Map.of(LineOfBusiness.MOTOR, motorRate, LineOfBusiness.PROPERTY, propertyRate);
     }
 
     UUID submit(CurrentUser claimant, SubmitClaimRequest request) {
@@ -72,7 +79,7 @@ class ClaimService {
         Instant now = Instant.now();
         Claim claim = Claim.submit(
                 nextClaimNumber(now), policy, claimant.id(), request.incidentDate(),
-                request.incidentDescription(), request.claimedAmount(), now);
+                request.incidentDescription(), request.claimedAmount(), initialReserve(policy, request.claimedAmount()), now);
         changes.record(claim, null, claimant.id(), null, ClaimEventType.CLAIM_SUBMITTED);
         if (motor) {
             motorDetails.save(new MotorClaimDetail(claim.getId(), request.motor()));
@@ -81,6 +88,20 @@ class ClaimService {
         }
         reserves.save(new Reserve(claim.getId(), claim.getCurrentReserve(), Reserve.Reason.INITIAL, null, now));
         return claim.getId();
+    }
+
+    /**
+     * The claimant's estimate when they gave one; otherwise a share of the sum insured for that line.
+     * A percentage keeps the default meaningful in every market's currency.
+     */
+    // ponytail: flat rate per line. Real insurers use average claim cost by market and peril; replace the rates with a table.
+    private BigDecimal initialReserve(Policy policy, BigDecimal claimedAmount) {
+        if (claimedAmount != null) {
+            return claimedAmount;
+        }
+        return policy.getSumInsured()
+                .multiply(defaultReserveRates.get(policy.getLineOfBusiness()))
+                .setScale(2, RoundingMode.HALF_UP);
     }
 
     private String nextClaimNumber(Instant now) {

@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class ClaimViews {
 
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     public record ListItem(
             UUID id, String claimNumber, LineOfBusiness lineOfBusiness, String marketCode, String currency,
             ClaimStatus status, BigDecimal claimedAmount, LocalDate incidentDate, String claimantName,

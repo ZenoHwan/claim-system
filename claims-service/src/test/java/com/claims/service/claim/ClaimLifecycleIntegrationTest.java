@@ -56,6 +56,40 @@ class ClaimLifecycleIntegrationTest extends IntegrationTest {
         }
 
         @Test
+        void theClaimedAmountIsOptionalBecauseClaimantsOftenDoNotKnowItYet() throws Exception {
+            Map<String, Object> claim = motorClaim(AISHA_MOTOR, "1.00");
+            claim.remove("claimedAmount");
+
+            postJson("/api/claims", bearer(AISHA), claim)
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.claimedAmount").doesNotExist());
+        }
+
+        @Test
+        void withNoClaimedAmountTheInitialReserveIsAShareOfTheSumInsuredForThatLine() throws Exception {
+            Map<String, Object> motor = motorClaim(AISHA_MOTOR, "1.00");
+            motor.remove("claimedAmount");
+            Map<String, Object> property = propertyClaim(AISHA_PROPERTY, "1.00");
+            property.remove("claimedAmount");
+
+            // motor: 10% of 80,000; property: 5% of 500,000
+            getAs("/api/claims/" + submit(AISHA, motor), bearer(OFFICER_1)).andExpect(jsonPath("$.currentReserve").value(8000.00));
+            getAs("/api/claims/" + submit(AISHA, property), bearer(OFFICER_1)).andExpect(jsonPath("$.currentReserve").value(25000.00));
+        }
+
+        @Test
+        void aClaimWithNoClaimedAmountStillListsAndPublishesItsDefaultReserve() throws Exception {
+            Map<String, Object> claim = motorClaim(AISHA_MOTOR, "1.00");
+            claim.remove("claimedAmount");
+            String id = submit(AISHA, claim);
+
+            getAs("/api/claims", bearer(AISHA)).andExpect(status().isOk());
+            assertThat(json.readTree(jdbc.queryForObject(
+                            "select payload::text from outbox_event where aggregate_id = ?::uuid", String.class, id))
+                    .get("claim").get("currentReserve").decimalValue()).isEqualByComparingTo("8000.00");
+        }
+
+        @Test
         void someoneElsesPolicyIsRefusedAndNothingIsCreated() throws Exception {
             int before = jdbc.queryForObject("select count(*) from claim", Integer.class);
 

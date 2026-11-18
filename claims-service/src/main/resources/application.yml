@@ -37,6 +37,11 @@ claims:
     ttl: 8h
   documents:
     dir: ./data/documents
+  reserve:
+    # Initial reserve when the claimant gives no estimate, as a share of the policy's sum insured.
+    default-rate:
+      motor: 0.10
+      property: 0.05
   outbox:
     poll-interval: 1s
     send-timeout: 12s

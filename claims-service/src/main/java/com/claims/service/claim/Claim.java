@@ -57,7 +57,7 @@ public class Claim {
 
     public static Claim submit(
             String claimNumber, Policy policy, UUID claimantId, LocalDate incidentDate,
-            String incidentDescription, BigDecimal claimedAmount, Instant now) {
+            String incidentDescription, BigDecimal claimedAmount, BigDecimal initialReserve, Instant now) {
         Claim claim = new Claim();
         claim.id = UUID.randomUUID();
         claim.claimNumber = claimNumber;
@@ -70,8 +70,8 @@ public class Claim {
         claim.incidentDate = incidentDate;
         claim.incidentDescription = incidentDescription;
         claim.claimedAmount = claimedAmount;
-        // Initial reserve: an unassessed claim must still count toward exposure.
-        claim.currentReserve = claimedAmount;
+        // An unassessed claim must still count toward exposure, whether or not the claimant gave a figure.
+        claim.currentReserve = initialReserve;
         claim.submittedAt = now;
         claim.updatedAt = now;
         return claim;
