@@ -5,6 +5,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Map;
@@ -40,8 +44,15 @@ public abstract class IntegrationTest {
 
     static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:17");
 
+    protected static final Path DOCUMENTS;
+
     static {
         POSTGRES.start();
+        try {
+            DOCUMENTS = Files.createTempDirectory("claim-documents");
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     @DynamicPropertySource
@@ -49,6 +60,9 @@ public abstract class IntegrationTest {
         registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
         registry.add("spring.datasource.username", POSTGRES::getUsername);
         registry.add("spring.datasource.password", POSTGRES::getPassword);
+        registry.add("claims.documents.dir", () -> DOCUMENTS.toString());
+        // tests drive the outbox relay themselves instead of waiting on the scheduler
+        registry.add("claims.outbox.relay.enabled", () -> "false");
     }
 
     @Autowired
@@ -152,6 +166,35 @@ public abstract class IntegrationTest {
         String id = submitMotorClaim(claimed);
         pickUp(OFFICER_1, id).andExpect(status().isOk());
         assess(OFFICER_1, id, recommended).andExpect(status().isOk());
+        return id;
+    }
+
+    protected ResultActions requestInformation(String staffEmail, String claimId, String question) throws Exception {
+        return postJson("/api/staff/claims/" + claimId + "/information-requests", bearer(staffEmail), Map.of("question", question));
+    }
+
+    /** A claim OFFICER_1 has picked up and asked a question about. Returns {claimId, requestId}. */
+    protected String[] claimAwaitingInformation() throws Exception {
+        String id = submitMotorClaim("8500.00");
+        pickUp(OFFICER_1, id).andExpect(status().isOk());
+        JsonNode claim = body(requestInformation(OFFICER_1, id, "Please upload the police report").andExpect(status().isOk()));
+        return new String[] {id, claim.get("informationRequests").get(0).get("id").asString()};
+    }
+
+    protected ResultActions respond(String claimantEmail, String claimId, String requestId, String text) throws Exception {
+        return postJson("/api/claims/" + claimId + "/information-requests/" + requestId + "/response",
+                bearer(claimantEmail), Map.of("responseText", text));
+    }
+
+    protected ResultActions recordPayment(String staffEmail, String claimId, String reference) throws Exception {
+        return postJson("/api/staff/claims/" + claimId + "/payment", bearer(staffEmail),
+                Map.of("method", "BANK_TRANSFER", "reference", reference));
+    }
+
+    /** A claim approved by OFFICER_1 for the given amount, with its payment still to be recorded. */
+    protected String approvedClaim(String amount) throws Exception {
+        String id = assessedClaim("8500.00", amount);
+        approve(OFFICER_1, id, amount).andExpect(status().isOk());
         return id;
     }
 

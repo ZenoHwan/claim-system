@@ -21,10 +21,12 @@ import org.springframework.web.bind.annotation.RestController;
 class ClaimController {
 
     private final ClaimService service;
+    private final InformationRequestService informationRequests;
     private final ClaimViews views;
 
-    ClaimController(ClaimService service, ClaimViews views) {
+    ClaimController(ClaimService service, InformationRequestService informationRequests, ClaimViews views) {
         this.service = service;
+        this.informationRequests = informationRequests;
         this.views = views;
     }
 
@@ -50,5 +52,15 @@ class ClaimController {
     @GetMapping("/{claimId}")
     ClaimViews.Detail claim(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID claimId) {
         return views.detail(CurrentUser.from(jwt), claimId);
+    }
+
+    /** The claimant answers an open information request; the claim goes back to its officer. */
+    @PostMapping("/{claimId}/information-requests/{requestId}/response")
+    ClaimViews.Detail respond(
+            @AuthenticationPrincipal Jwt jwt, @PathVariable UUID claimId, @PathVariable UUID requestId,
+            @Valid @RequestBody InformationRequestService.AnswerRequest request) {
+        CurrentUser claimant = CurrentUser.from(jwt);
+        informationRequests.answer(claimant, claimId, requestId, request);
+        return views.detail(claimant, claimId);
     }
 }

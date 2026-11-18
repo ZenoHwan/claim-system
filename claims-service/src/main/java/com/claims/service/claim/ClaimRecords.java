@@ -27,4 +27,12 @@ final class ClaimRecords {
     interface Decisions extends JpaRepository<Decision, UUID> {
         Optional<Decision> findByClaimId(UUID claimId);
     }
+
+    interface InformationRequests extends JpaRepository<InformationRequest, UUID> {
+        List<InformationRequest> findByClaimIdOrderByRequestedAt(UUID claimId);
+    }
+
+    interface Documents extends JpaRepository<ClaimDocument, UUID> {
+        List<ClaimDocument> findByClaimIdOrderByUploadedAt(UUID claimId);
+    }
 }

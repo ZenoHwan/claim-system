@@ -17,9 +17,16 @@ spring:
     locations: classpath:db/migration,classpath:db/seed
   kafka:
     bootstrap-servers: localhost:9092
+  servlet:
+    multipart:
+      # the 10 MB document limit is enforced in DocumentService; this only stops absurd uploads early
+      max-file-size: 11MB
+      max-request-size: 12MB
 
 claims:
   jwt:
     # Shared signing key, verified by every service. Dev default only: set CLAIMS_JWT_SECRET anywhere real.
     secret: ${CLAIMS_JWT_SECRET:dev-only-secret-change-me-0123456789abcdef}
     ttl: 8h
+  documents:
+    dir: ./data/documents

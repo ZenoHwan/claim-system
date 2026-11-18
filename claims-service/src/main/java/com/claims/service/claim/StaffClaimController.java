@@ -19,10 +19,12 @@ import org.springframework.web.bind.annotation.RestController;
 class StaffClaimController {
 
     private final ClaimService service;
+    private final InformationRequestService informationRequests;
     private final ClaimViews views;
 
-    StaffClaimController(ClaimService service, ClaimViews views) {
+    StaffClaimController(ClaimService service, InformationRequestService informationRequests, ClaimViews views) {
         this.service = service;
+        this.informationRequests = informationRequests;
         this.views = views;
     }
 
@@ -58,6 +60,15 @@ class StaffClaimController {
             @Valid @RequestBody ClaimService.DecisionRequest request) {
         CurrentUser staff = CurrentUser.from(jwt);
         service.decide(staff, claimId, request);
+        return views.detail(staff, claimId);
+    }
+
+    @PostMapping("/{claimId}/information-requests")
+    ClaimViews.Detail requestInformation(
+            @AuthenticationPrincipal Jwt jwt, @PathVariable UUID claimId,
+            @Valid @RequestBody InformationRequestService.AskRequest request) {
+        CurrentUser staff = CurrentUser.from(jwt);
+        informationRequests.ask(staff, claimId, request);
         return views.detail(staff, claimId);
     }
 }

@@ -36,10 +36,10 @@ Working rules for every group: write the failing test first for anything with lo
 
 ## 5. claims-service: information requests and documents
 
-- [ ] 5.1 Add migrations for `information_request` and `claim_document`; verify the app starts and the tables exist
-- [ ] 5.2 Test-first: request information and respond, including repeat requests and the conflict cases; verify the information-requests scenarios pass
-- [ ] 5.3 Test-first: upload with type-by-content and size checks, link to an information request, and refuse closed claims and staff uploads; verify the upload scenarios in claim-documents pass
-- [ ] 5.4 Test-first: list and download with per-claim authorisation; verify the download scenarios pass and that a path-traversal file name cannot escape the storage directory
+- [x] 5.1 Add migrations for `information_request` and `claim_document`; verify the app starts and the tables exist
+- [x] 5.2 Test-first: request information and respond, including repeat requests and the conflict cases; verify the information-requests scenarios pass
+- [x] 5.3 Test-first: upload with type-by-content and size checks, link to an information request, and refuse closed claims and staff uploads; verify the upload scenarios in claim-documents pass
+- [x] 5.4 Test-first: list and download with per-claim authorisation; verify the download scenarios pass and that a path-traversal file name cannot escape the storage directory
 
 ## 6. claims-service: settlement
 

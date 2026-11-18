@@ -35,6 +35,15 @@ public class ClaimViews {
 
     public record DecisionView(Decision.Outcome outcome, BigDecimal approvedAmount, String reason, String decidedByName, Instant decidedAt) {}
 
+    public record InformationRequestView(
+            UUID id, String question, InformationRequest.Status status, String requestedByName, Instant requestedAt,
+            String responseText, Instant answeredAt) {}
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record DocumentView(
+            UUID id, String fileName, String contentType, long sizeBytes, UUID informationRequestId,
+            String uploadedByName, Instant uploadedAt) {}
+
     /** {@code currentReserve} and {@code assessment} are internal figures: null, and so omitted, for a claimant. */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record Detail(
@@ -44,7 +53,8 @@ public class ClaimViews {
             UUID claimantId, String claimantName, UUID assignedOfficerId, String assignedOfficerName,
             long version, Instant submittedAt, Instant updatedAt,
             MotorView motor, PropertyView property, List<HistoryEntry> history,
-            BigDecimal currentReserve, AssessmentView assessment, DecisionView decision) {}
+            BigDecimal currentReserve, AssessmentView assessment, DecisionView decision,
+            List<InformationRequestView> informationRequests, List<DocumentView> documents) {}
 
     private final ClaimAccess access;
     private final ClaimRepository claims;
@@ -55,11 +65,14 @@ public class ClaimViews {
     private final ClaimRecords.History history;
     private final ClaimRecords.Assessments assessments;
     private final ClaimRecords.Decisions decisions;
+    private final ClaimRecords.InformationRequests informationRequests;
+    private final ClaimRecords.Documents documents;
 
     ClaimViews(
             ClaimAccess access, ClaimRepository claims, AppUserRepository users, PolicyRepository policies,
             ClaimRecords.MotorDetails motorDetails, ClaimRecords.PropertyDetails propertyDetails,
-            ClaimRecords.History history, ClaimRecords.Assessments assessments, ClaimRecords.Decisions decisions) {
+            ClaimRecords.History history, ClaimRecords.Assessments assessments, ClaimRecords.Decisions decisions,
+            ClaimRecords.InformationRequests informationRequests, ClaimRecords.Documents documents) {
         this.access = access;
         this.claims = claims;
         this.users = users;
@@ -69,6 +82,8 @@ public class ClaimViews {
         this.history = history;
         this.assessments = assessments;
         this.decisions = decisions;
+        this.informationRequests = informationRequests;
+        this.documents = documents;
     }
 
     public List<ListItem> submittedBy(CurrentUser claimant) {
@@ -118,7 +133,16 @@ public class ClaimViews {
                         : null,
                 decisions.findByClaimId(claimId)
                         .map(d -> new DecisionView(d.outcome, d.approvedAmount, d.reason, name(d.decidedBy), d.decidedAt))
-                        .orElse(null));
+                        .orElse(null),
+                informationRequests.findByClaimIdOrderByRequestedAt(claimId).stream()
+                        .map(r -> new InformationRequestView(
+                                r.id, r.question, r.status, name(r.requestedBy), r.requestedAt, r.responseText, r.answeredAt))
+                        .toList(),
+                documents.findByClaimIdOrderByUploadedAt(claimId).stream().map(this::document).toList());
+    }
+
+    DocumentView document(ClaimDocument d) {
+        return new DocumentView(d.id, d.fileName, d.contentType, d.sizeBytes, d.informationRequestId, name(d.uploadedBy), d.uploadedAt);
     }
 
     private String name(UUID userId) {
