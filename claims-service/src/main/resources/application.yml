@@ -17,6 +17,13 @@ spring:
     locations: classpath:db/migration,classpath:db/seed
   kafka:
     bootstrap-servers: localhost:9092
+    producer:
+      # wait for the broker to confirm the write before an outbox row is marked published
+      acks: all
+      properties:
+        max.block.ms: 5000
+        request.timeout.ms: 5000
+        delivery.timeout.ms: 10000
   servlet:
     multipart:
       # the 10 MB document limit is enforced in DocumentService; this only stops absurd uploads early
@@ -30,3 +37,6 @@ claims:
     ttl: 8h
   documents:
     dir: ./data/documents
+  outbox:
+    poll-interval: 1s
+    send-timeout: 12s

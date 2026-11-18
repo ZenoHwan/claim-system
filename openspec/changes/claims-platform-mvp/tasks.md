@@ -16,7 +16,7 @@ Working rules for every group: write the failing test first for anything with lo
 
 ## 3. claims-service: foundation and identity
 
-- [ ] 3.1 Scaffold the Spring Boot app with Flyway and the migration for `team`, `app_user`, `policy`; verify the app starts against compose and the tables exist
+- [x] 3.1 Scaffold the Spring Boot app with Flyway and the migration for `team`, `app_user`, `policy`; verify the app starts against compose and the tables exist
 - [x] 3.2 Seed teams, one manager, officers, and claimants with a motor and a property policy (BCrypt passwords); verify by integration test that the seeded accounts exist after a fresh start
 - [x] 3.3 Test-first: sign-in issues a token for the matching door and refuses the wrong door and a wrong password; verify the identity-access sign-in scenarios pass
 - [x] 3.4 Test-first: protected endpoints return 401 without a valid token and 403 for the wrong role; verify the authentication and role scenarios pass
@@ -49,9 +49,9 @@ Working rules for every group: write the failing test first for anything with lo
 
 ## 7. claims-service: event publishing
 
-- [ ] 7.1 Test-first: the outbox relay publishes unpublished rows oldest first, keyed by claim id, and stamps `published_at`; verify with a Testcontainers Kafka test that a full lifecycle produces the expected events in order
-- [ ] 7.2 Test-first: with the broker unavailable the claim action still succeeds and the row stays unpublished, then is published when the broker returns; verify by integration test
-- [ ] 7.3 Publish the OpenAPI document for claims-service; verify `/v3/api-docs` lists every endpoint used above
+- [x] 7.1 Test-first: the outbox relay publishes unpublished rows oldest first, keyed by claim id, and stamps `published_at`; verify with a Testcontainers Kafka test that a full lifecycle produces the expected events in order
+- [x] 7.2 Test-first: with the broker unavailable the claim action still succeeds and the row stays unpublished, then is published when the broker returns; verify by integration test
+- [x] 7.3 Publish the OpenAPI document for claims-service; verify `/v3/api-docs` lists every endpoint used above
 
 ## 8. reporting-service
 
