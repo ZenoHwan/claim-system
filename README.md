@@ -97,11 +97,15 @@ Needs JDK 21 and Node 22 as well. Stop the app containers first so the ports are
 
 Use two browser windows (one normal, one private) so both sessions stay signed in.
 
-1. Claimant `aisha@claims.test` at `/login`: **New claim**, pick the motor policy, attach a photo, submit.
+1. Claimant `aisha@claims.test` at `/login`: **My policies**, open the motor policy to see its cover
+   and claim history, then **Make a claim**. Try a bad plate, date or postal code to see the
+   field errors, then attach a photo and submit.
 2. Officer `officer1.my@claims.test` at `/admin/login`: **Queue**, **Pick up**, then **Request information**.
-   The claimant's bell updates without a refresh.
-3. Claimant: reply with a PDF. The officer's bell updates.
-4. Officer: **Assess**, **Approve**, **Record payment**. The claimant sees each step live.
+   The claimant's bell and **Follow-ups** count update without a refresh.
+3. Claimant: open **Follow-ups**, reply with a PDF. The officer's **Follow-ups** tab now shows
+   one reply to review.
+4. Officer: **Assess**, **Approve**, **Record payment**. The claimant sees each step live, and the
+   follow-up clears itself once the officer assesses.
 5. Manager `manager.my@claims.test`: **Dashboard**. Exposure rises on submission, changes on
    assessment and drops on settlement.
 6. Resilience: `docker compose stop kafka`, submit another claim (it is accepted),
@@ -113,6 +117,28 @@ Built: sign-in through two doors, the full claim lifecycle from submission to se
 rejection, information requests, document upload, a thin payment record, event publishing through
 a transactional outbox, workload / performance / exposure reporting, and live in-app notifications.
 
+| Area | Claimant | Staff |
+|---|---|---|
+| Policies | **My policies** lists each policy with any claim in progress; a policy page shows its cover, sum insured, market and every claim made on it, with **Make a claim** preselecting it | Policy shown on each claim |
+| Claims | Five-step **New claim** with a draft that survives a refresh; one open claim per policy | **Queue** of unassigned claims in the officer's market, **My claims**, a workbench per claim |
+| Follow-ups | **Follow-ups** tab lists questions waiting for a reply; its badge counts them | **Follow-ups** tab lists replies to review and questions still with the claimant; its badge counts the replies |
+| Notifications | Bell with live push; opening it clears the unread count (stored, so it stays cleared) | Same |
+| Reporting | | Managers: workload, performance and exposure dashboard |
+
+**Claim form validation.** Every rule is enforced by claims-service and mirrored in the form, so
+each field shows its own message:
+
+| Field | Rule |
+|---|---|
+| Incident date | A real dd/mm/yyyy date, within the policy's cover and not in the future |
+| Description | 20 to 4000 characters |
+| Estimated loss | Optional; above 0, at most 2 decimal places |
+| Vehicle registration | MY / SG plate format, stored in a standard form (`dua1234` becomes `DUA 1234`) |
+| Driver name, address lines | Letters, digits and the punctuation names and addresses use; address line 1 required |
+| Postal code | 5 digits for a Malaysian policy, 6 for a Singaporean one |
+
+Free text is trimmed and repeated spaces collapsed before it is checked and stored.
+
 Designed only (see `docs/`): manager sign-off above an authority limit, claimant withdrawal,
 payment execution through a bank, multiple payments per claim, currency conversion, real email,
 an API gateway, an identity provider. Known shortcuts are marked in the code with `ponytail:`.
@@ -122,9 +148,9 @@ an API gateway, an identity provider. Known shortcuts are marked in the code wit
 | Module | Tests | Covers |
 |---|---|---|
 | `claim-events` | 10 | JSON round trip of every event type, unknown fields ignored |
-| `claims-service` | 83 | sign-in, roles, every state transition, concurrency, documents, payment, outbox relay incl. a broker outage |
+| `claims-service` | 102 | sign-in, roles, every state transition, concurrency, field validation and clean-up, documents, payment, follow-ups, policy detail, outbox relay incl. a broker outage |
 | `reporting-service` | 25 | projection, duplicate and stale events, dead-lettering, the three reports |
-| `notification-service` | 24 | event-to-notification rules, inbox, live stream, duplicate delivery |
+| `notification-service` | 25 | event-to-notification rules, inbox, mark all read, live stream, duplicate delivery |
 
 The frontend has no automated tests; it was checked by hand in the browser.
 
