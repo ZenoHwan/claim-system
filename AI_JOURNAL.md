@@ -23,21 +23,21 @@ recommended one option and I chose another.
 
 ### 3. Backend stack
 
-**Asked:** The AI asked me to choose between .NET and Spring Boot, noting that it had to be the one I could defend line by line.
+**Raised:** The AI asked me to choose between .NET and Spring Boot, noting that it had to be the one I could defend line by line.
 **AI said:** It had no preference, and noted that neither the JDK nor the .NET SDK was installed on my machine yet.
 **What I did:** I chose Spring Boot.
 **Why:** It is the stack I can defend line by line, and it offers mature, well-established support for everything this design requires: Kafka, Flyway, Spring Security for JWT, and Testcontainers for genuine integration tests.
 
 ### 4. Single service or multiple services
 
-**Asked:** Should the backend be one service or several?
+**Raised:** Whether the backend should be one service or several.
 **AI said:** It recommended a single service with the Kafka consumers inside it. With only five hours available, fewer moving parts would mean less risk during the demo, and "why three services for one team?" would be a difficult question to answer.
 **What I did:** Overrode. I chose three services: claims, reporting and notification.
 **Why:** The three parts have different responsibilities and different tolerance for failure. Claims is transactional and must never be blocked, reporting performs read-heavy aggregation, and notifications fan out to users. Separating them ensures that a reporting outage or a slow dashboard query cannot prevent a customer from filing a claim. It also demonstrates the event-driven integration (outbox, Kafka, read models) that a real insurance platform requires. I accepted the additional complexity and contained it with a shared event-contract module, a single Compose file, and one database server hosting a separate database per service.
 
 ### 5. Stress-testing the design before writing any specification
 
-**Asked:** I instructed the AI to postpone `openspec init` and run a structured questioning session first, in case the requirements changed. I also requested ER, C4, sequence, state machine and user flow / wireframe diagrams.
+**Raised:** I instructed the AI to postpone `openspec init` and run a structured questioning session first, in case the requirements changed. I also required ER, C4, sequence, state machine and user flow / wireframe diagrams.
 **AI said:** It worked through 34 questions over several rounds, each with a recommended answer.
 **What I did:** This step was my decision. I worked through every question.
 **Why:** At this stage, changing a requirement costs one answer; after the code exists, it costs a rewrite. Settling the design first kept the specification stable throughout the build, and the diagrams give the panel a map of the system before they read any code.
@@ -50,7 +50,7 @@ recommended one option and I chose another.
 
 ### 7. Login screens and testing approach
 
-**Asked:** The Round 2 proposal used a single shared login and wrote tests after the code.
+**Raised:** The Round 2 proposal used a single shared login and wrote tests after the code.
 **AI said:** It recommended one login, with the user's role determining the landing page, and a test suite of state machine unit tests plus two integration tests.
 **What I did:** Challenged both. I required `/login` for claimants and `/admin/login` for staff, and strict test-driven development (red-green-refactor) following DRY and YAGNI.
 **AI then:** It agreed, and added that the server, not only the UI, must reject a user whose role does not match the login page. It limited TDD to code containing logic (excluding page objects, configuration and Angular templates), with one commit per green cycle and no deliberately failing commits.
@@ -65,21 +65,21 @@ recommended one option and I chose another.
 
 ### 9. Payment
 
-**Asked:** I asked the AI to explain what a payment module would realistically involve.
+**Raised:** I had the AI set out what a payment module would realistically involve.
 **AI said:** It presented three options: recording a reference on the decision, a lightweight `payment` table, or a fourth service with a Kafka round trip to a simulated bank. It recommended the lightweight table, noting that a fourth service would not be realistic within five hours.
 **What I did:** I accepted the lightweight table.
 **Why:** It completes the lifecycle (approved, paid, settled) with an auditable record, and a unique constraint on `claim_id` makes a duplicate payment impossible at the database level. A simulated bank integration would spend the available time on infrastructure that demonstrates nothing about claims handling.
 
 ### 10. Manager permissions
 
-**Asked:** The diagrams referred only to "officer" throughout.
+**Raised:** The diagrams referred only to "officer" throughout.
 **What I did:** I specified that a manager must be able to perform every officer action, in addition to accessing the dashboard.
 **AI then:** It confirmed this was the intent and made it explicit in the documentation and the specification.
 **Why:** A manager covers for an absent officer. If a manager can see a stalled claim but cannot act on it, that is an operational gap, and documentation that mentions only "officer" is exactly the kind of ambiguity that later becomes a defect.
 
 ### 11. Kafka outage handling
 
-**Asked:** If the message broker is unavailable, is there a table to roll back to?
+**Raised:** What protects a claim change when the message broker is unavailable.
 **AI said:** Rollback is not required. The `outbox_event` table holds the events and a relay retries until delivery succeeds, so claims continue to be processed and the dashboards and notifications catch up afterwards. It also identified two gaps: dead-lettered messages go to a Kafka topic that nothing monitors, and published outbox rows are never purged.
 **What I did:** I accepted this approach and recorded both gaps under "with more time".
 **Why:** A Kafka outage must never prevent a customer from filing a claim. The outbox writes each event in the same transaction as the claim, so no event is lost and none is published for a change that was rolled back. The two gaps concern monitoring and housekeeping rather than correctness, so documenting them was the appropriate decision within the time available.
@@ -121,7 +121,7 @@ ownership of each one or change it.
 
 ### 15. How TDD was applied in practice
 
-I asked for strict red-green-refactor. The table below shows what actually happened.
+I required strict red-green-refactor. The table below shows what actually happened.
 
 | Slice | Failing test observed first? |
 |---|---|
@@ -170,25 +170,25 @@ AI's work most often.
 
 ### 18. Demo password
 
-**What I did:** I asked for all seeded accounts to share one simple password.
+**What I did:** I set all seeded accounts to share one simple password.
 **AI then:** It updated the seed data, tests, README and running database, and made re-seeding refresh the password hash. It also added a note to the README that the seed is demonstration data only.
 
 ### 19. Sign-in rejected at the claimant login
 
-**Asked:** An officer account was rejected at the claimant login page.
+**Raised:** An officer account was rejected at the claimant login page.
 **AI said:** This was the intended behaviour, because the account was used at the wrong login page. The server deliberately returns the same error for an incorrect password, an unknown email address and the wrong login page, so the form cannot be used to discover which accounts exist. It offered to add a more helpful hint.
 **What I did:** I accepted the explanation and kept the generic error, because resistance to account enumeration is worth more than the convenience of a hint.
 
 ### 20. Calendar on the date field
 
-**What I did:** I requested a calendar picker for the date field.
+**What I did:** I added a calendar picker to the date field.
 **AI first:** It added a button that opens the browser's built-in date picker, avoiding a new library. This did not work correctly in my browser.
 **AI then:** It switched to the Angular Material datepicker, with day, month and year selection and future dates disabled.
 **Lesson:** My hands-on testing showed that the minimal native option was not sufficient here. The AI had verified only that the button invoked the picker, not that a calendar appeared, and it stated this limitation.
 
 ### 21. Whether the claimed amount is necessary
 
-**Asked:** In insurance practice, does the claimant need to state an amount?
+**Raised:** I challenged the assumption that a claimant must state an amount, which is not how first notification works in insurance practice.
 **AI said:** No. At first notification of loss, most claimants do not yet have a quote, and the figure that matters is the insurer's reserve. However, the design used the claimed amount as the initial reserve, so a blank value would require a substitute or exposure would again be understated. It recommended an optional "estimated loss" field, with a default reserve applied when it is left blank.
 **What I did:** I challenged the original design and accepted the revised approach.
 **AI then revised its own proposal:** It initially suggested a fixed default figure per line of business, then changed to a **percentage of the sum insured** (10% for motor, 5% for property), because a fixed figure is meaningless across currencies.
@@ -208,25 +208,25 @@ AI's work most often.
 
 ### 24. Running all services in Docker
 
-**Asked:** Why did my Docker container list show only PostgreSQL and Kafka?
+**Raised:** My Docker container list showed only PostgreSQL and Kafka.
 **AI said:** This was by design. Only the infrastructure was containerised, while the services ran with `java -jar` on the host so that a code change required only a quick restart rather than an image rebuild. The drawback was five commands across four terminals. It offered to containerise everything.
-**What I did:** I asked for the entire system to run under Docker Compose.
+**What I did:** I required the entire system to run under Docker Compose.
 **AI then:** It created a single Dockerfile for the three services (a build argument selects the module), an nginx image for the frontend that also routes `/api` requests to the services, and Compose entries for every component. Kafka required two listeners, one for containers and one for the host, because a Kafka client reconnects to whichever address the broker advertises. The services run as a non-root user. The AI verified the setup by taking a claim through its full lifecycle in the containers.
 **Follow-up:** I should be able to explain the two Kafka listeners myself.
 
 ### 25. Database per service, and removing the unused database
 
-**Asked:** When I connected to PostgreSQL from a database client, I asked why the data is split across several databases, whether foreign keys are used, and whether the extra `claims` database was still needed.
+**Raised:** Connecting to PostgreSQL from a database client, I reviewed why the data is split across several databases, whether foreign keys are used, and whether the extra `claims` database was still needed.
 **AI said:** Each service owns its own database (`claims_db`, `reporting_db`, `notification_db`), as decided in design D7, so that no service can couple to another's tables; data is shared only through Kafka events. Foreign keys are used throughout `claims_db` but cannot cross databases. The `claims` database was never used: PostgreSQL creates it automatically because the user is named `claims`.
-**What I did:** I asked for the unused database to be removed.
+**What I did:** I had the unused database removed.
 **AI then:** It dropped the empty `claims` database and set `POSTGRES_DB: claims_db` in Docker Compose, so a fresh volume no longer recreates it, and removed the now-duplicate `CREATE DATABASE claims_db` from the init script.
 **Why:** A clean environment is easier to reason about and to demonstrate. Understanding the isolation also prepared me to defend the trade-off: independent schemas and contained failures, at the cost of no cross-service joins and eventually consistent read models.
 
 ### 26. A "My policies" page for claimants
 
-**Asked:** Apart from making a new claim, can a customer see their policies?
+**Raised:** Apart from making a new claim, a customer had no way to see their policies.
 **AI said:** Only inside the New Claim dropdown. The existing `GET /api/policies` endpoint already returned everything a policy page needs, so the page would be a frontend-only change.
-**What I did:** I asked for the page.
+**What I did:** I had the page built.
 **AI then:** It added a My Policies page listing each policy's number, type, cover period, sum insured and any claim in progress, with a link to that claim. Policies without an open claim offer a "Make a claim" button that opens New Claim with the policy preselected. Claimants also gained a navigation bar (My claims, My policies). It verified the page against the running application.
 **Why:** Customers expect to see what they are covered for before they report a loss. Reusing the existing endpoint delivered this with no backend or schema change.
 
@@ -238,13 +238,13 @@ AI's work most often.
 
 ### 28. Structured addresses with a postal code
 
-**What I did:** I asked for the motor accident location and the property address to be captured as structured address fields with a postal code, instead of a single free-text field. When the AI asked whether to use three address lines or street, city and state, I chose three address lines, the common layout on Malaysian forms, which also suits Singapore.
+**What I did:** I required the motor accident location and the property address to be captured as structured address fields with a postal code, instead of a single free-text field. When the AI asked whether to use three address lines or street, city and state, I chose three address lines, the common layout on Malaysian forms, which also suits Singapore.
 **AI then:** It introduced one shared `Address` (address lines 1 to 3 and postal code) for both claim types, used by the request, the database columns and the response. A Flyway migration (V7) renamed the existing column to `address_line1` and added the new columns, so existing claims keep their address as line 1. Line 1 and a 5 or 6 digit postal code are required and validated on both the server and the form. The tests were updated first and failed before the change, and all 94 claims-service tests then passed. The ER diagram and the generated frontend API types were updated.
 **Why:** Structured addresses with postal codes are what insurers need for assessing a location, detecting fraud and reporting by area. Migrating in place rather than recreating the tables preserved existing claims.
 
 ### 29. Validating every field on the claim form
 
-**What I did:** After testing the New Claim form with deliberately poor input, I asked for proper validation and clean-up on every field, including the date, the vehicle registration and the postal code.
+**What I did:** After testing the New Claim form with deliberately poor input, I required proper validation and clean-up on every field, including the date, the vehicle registration and the postal code.
 **AI then:** It added the rules to the server first, test-first (three new tests failed before the change, and all 97 claims-service tests then passed), and mirrored them in the form so each field shows a specific message:
 - Incident date: must be a real dd/mm/yyyy date, within the policy's cover and not in the future. Letters cannot be typed into the field.
 - Description: at least 20 characters. Estimated loss: above zero with at most two decimal places.
@@ -257,14 +257,14 @@ AI's work most often.
 
 ### 30. Failed reply with an attachment, and removing attached files
 
-**Asked:** Replying to an information request with a photo attached showed "Something went wrong", and I asked for attached files to be removable before sending.
+**Raised:** Replying to an information request with a photo attached showed "Something went wrong". I also required attached files to be removable before sending.
 **AI said:** The photo was a valid, small PNG and the upload route worked, so the failure lined up with the moment it restarted claims-service for a deployment; the generic message hid that. It also found that a reply failing part-way would upload already-sent files again on retry.
 **AI then:** Each attached file now has a Remove button. Files leave the list as soon as they upload, so a retry never duplicates them. When the service cannot be reached, the message now says so and asks the user to try again, instead of "Something went wrong".
 **Why:** An error message should tell the user what to do next. Preventing duplicate uploads keeps the claim's documents clean for the officer reviewing them.
 
 ### 31. Policy details and a Follow-ups tab for customers and staff
 
-**What I did:** I asked for customers to be able to open a policy and see its details, and for a Follow-ups tab in both the customer portal and the staff system, with a count, so that staff can see at a glance which follow-ups they have sent and which need their attention.
+**What I did:** I specified a policy details page for customers, and a Follow-ups tab in both the customer portal and the staff system, with a count, so that staff can see at a glance which follow-ups they have sent and which need their attention.
 **AI then:** It built both, test-first (five new tests failed before the change, and all 102 claims-service tests then passed):
 - **Policy details:** a new `GET /api/policies/{id}` returns the policy with every claim made on it. Customers open it from My Policies to see the type, status, cover period, sum insured, market and claim history, with "Make a claim" offered when no claim is in progress. Another customer's policy returns 404.
 - **Follow-ups:** a customer's tab lists the questions waiting for their reply. A staff member's tab lists replies they have not yet acted on, and the questions they sent that are still waiting for the claimant. The number on the tab counts what that person must act on: unanswered questions for a customer, replies to review for staff. A follow-up clears itself when the claim moves on (the customer replies, or the officer assesses or asks again), so there is no separate status to maintain. The count refreshes on navigation and when a live notification arrives.
@@ -272,7 +272,7 @@ AI's work most often.
 
 ### 32. End-to-end tests for the frontend
 
-**What I did:** I asked for a comprehensive Playwright suite, so the frontend is covered by automated tests as well as the services.
+**What I did:** I required a comprehensive Playwright suite, so the frontend is covered by automated tests as well as the services.
 **AI then:** It wrote 15 browser tests that run against the full Docker stack:
 - Sign-in through both doors, each door turning away the other kind of account, the password toggle, and the route guards for signed-out visitors, claimants and officers.
 - My Policies and the policy page, including "Make a claim" preselecting the policy and another customer's policy staying hidden.
@@ -284,7 +284,7 @@ The tests sign in as a dedicated claimant account and each gets a fresh policy w
 
 ### 33. A Redis cache sized for many users
 
-**What I did:** Planning for a large user base, I asked for Redis to cache the platform's queries.
+**What I did:** Planning for a large user base, I directed that Redis be added to cache the platform's queries.
 **AI then:**
 - Identified the two reads that grow with usage and cached only those in Redis: the Follow-ups list, which every user fetches on every page change at a cost of one query per claim, and the dashboard reports, which aggregate over every claim. Claim details, lists and the queue were left uncached because they change on almost every action.
 - Kept the cache correct by eviction rather than expiry: every claim change already passes through one method, which now clears the claimant's and officer's Follow-ups after the change commits; reporting clears a market's reports when it applies an event for it. Entries are typed JSON with a 60-second backstop expiry. If Redis is unavailable the database answers within the 500 ms timeout.
