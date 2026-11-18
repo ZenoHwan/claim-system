@@ -1,0 +1,11 @@
+.DS_Store
+.idea/
+.vscode/
+*.iml
+target/
+node_modules/
+dist/
+.angular/
+.env
+# uploaded claim documents (local storage)
+/data/
