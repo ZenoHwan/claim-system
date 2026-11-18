@@ -11,6 +11,13 @@ spring:
   mvc:
     problemdetails:
       enabled: true
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      # live push must not hold up event handling: give up quickly and push to this instance only
+      timeout: 500ms
+      connect-timeout: 500ms
   kafka:
     bootstrap-servers: localhost:9092
     consumer:

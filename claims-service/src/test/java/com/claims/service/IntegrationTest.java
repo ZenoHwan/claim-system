@@ -84,6 +84,29 @@ public abstract class IntegrationTest {
     @Autowired
     private RedisConnectionFactory redis;
 
+    /** Runs {@code action} with the Redis container frozen, then waits until Redis answers again. */
+    protected void whileRedisIsDown(ThrowingAction action) throws Exception {
+        REDIS.getDockerClient().pauseContainerCmd(REDIS.getContainerId()).exec();
+        try {
+            action.run();
+        } finally {
+            REDIS.getDockerClient().unpauseContainerCmd(REDIS.getContainerId()).exec();
+            // the next test must not start while Redis is still catching up
+            for (int attempt = 0; attempt < 50; attempt++) {
+                try {
+                    redis.getConnection().ping();
+                    break;
+                } catch (RuntimeException stillResuming) {
+                    Thread.sleep(200);
+                }
+            }
+        }
+    }
+
+    protected interface ThrowingAction {
+        void run() throws Exception;
+    }
+
     @BeforeEach
     void buildMockMvc() {
         mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();

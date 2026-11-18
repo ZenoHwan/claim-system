@@ -17,27 +17,43 @@ import org.springframework.data.redis.serializer.RedisSerializationContext.Seria
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * Redis cache for the read every signed-in user repeats: the Follow-ups list is fetched on every page
- * change and costs a query per claim. It is cached per user and cleared by {@link ClaimChanges} when one
- * of that user's claims changes. If Redis cannot be reached the error is logged and the database answers.
+ * Redis cache for the reads every signed-in user repeats: the Follow-ups list (fetched on every page
+ * change, a query per claim), each person's claim list and each market's unassigned queue. All of them
+ * change only when a claim changes, so {@link ClaimChanges} clears the affected entries on that one path.
+ * If Redis cannot be reached the error is logged and the database answers.
  */
 @Configuration
 @EnableCaching
 class CacheConfig implements CachingConfigurer {
 
+    /** Per user. */
     static final String FOLLOW_UPS = "followUps";
+    /** Per claimant: the claims they submitted. */
+    static final String CLAIMANT_CLAIMS = "claimantClaims";
+    /** Per officer: the claims assigned to them. */
+    static final String OFFICER_CLAIMS = "officerClaims";
+    /** Per market: submitted claims nobody has picked up. */
+    static final String QUEUE = "queue";
 
     @Bean
     RedisCacheManager cacheManager(RedisConnectionFactory redis, JsonMapper json, @Value("${claims.cache.ttl}") Duration ttl) {
-        // Typed JSON, not Java serialisation: readable in redis-cli and nothing but this type is ever created from it.
-        var followUps = new JacksonJsonRedisSerializer<List<ClaimViews.FollowUp>>(
-                json, json.getTypeFactory().constructCollectionType(List.class, ClaimViews.FollowUp.class));
+        // Typed JSON, not Java serialisation: readable in redis-cli and nothing but these types is ever created from it.
+        var followUps = typed(json, ttl, ClaimViews.FollowUp.class);
+        var claimList = typed(json, ttl, ClaimViews.ListItem.class);
         return RedisCacheManager.builder(redis)
-                .withCacheConfiguration(FOLLOW_UPS, RedisCacheConfiguration.defaultCacheConfig()
-                        .entryTtl(ttl)
-                        .serializeValuesWith(SerializationPair.fromSerializer(followUps)))
+                .withCacheConfiguration(FOLLOW_UPS, followUps)
+                .withCacheConfiguration(CLAIMANT_CLAIMS, claimList)
+                .withCacheConfiguration(OFFICER_CLAIMS, claimList)
+                .withCacheConfiguration(QUEUE, claimList)
                 .disableCreateOnMissingCache()
                 .build();
+    }
+
+    private static RedisCacheConfiguration typed(JsonMapper json, Duration ttl, Class<?> element) {
+        var listOf = json.getTypeFactory().constructCollectionType(List.class, element);
+        return RedisCacheConfiguration.defaultCacheConfig()
+                .entryTtl(ttl)
+                .serializeValuesWith(SerializationPair.fromSerializer(new JacksonJsonRedisSerializer<>(json, listOf)));
     }
 
     @Override

@@ -10,18 +10,18 @@ class ClaimEventListener {
 
     private final JsonMapper json;
     private final NotificationService notifications;
-    private final LiveStream liveStream;
+    private final LiveBroadcast broadcast;
 
-    ClaimEventListener(JsonMapper json, NotificationService notifications, LiveStream liveStream) {
+    ClaimEventListener(JsonMapper json, NotificationService notifications, LiveBroadcast broadcast) {
         this.json = json;
         this.notifications = notifications;
-        this.liveStream = liveStream;
+        this.broadcast = broadcast;
     }
 
     @KafkaListener(topics = ClaimEvent.TOPIC)
     void onClaimEvent(String payload) {
         ClaimEvent event = json.readValue(payload, ClaimEvent.class);
-        // push only after handle() has committed, so a pushed notification is always in the inbox
-        notifications.handle(event).ifPresent(liveStream::push);
+        // broadcast only after handle() has committed, so a pushed notification is always in the inbox
+        notifications.handle(event).ifPresent(broadcast::publish);
     }
 }

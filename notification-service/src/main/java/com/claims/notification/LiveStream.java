@@ -11,11 +11,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 /**
- * Open server-sent-event connections, by user.
- *
- * ponytail: held in memory, so it only reaches users connected to this instance. With more than
- * one instance, give each its own consumer group (or put a pub/sub in front) so every instance
- * sees every event.
+ * Open server-sent-event connections, by user. They are held in memory, so this reaches only users
+ * connected to this instance; {@link LiveBroadcast} is what carries a notification to every instance.
  */
 @Component
 class LiveStream {

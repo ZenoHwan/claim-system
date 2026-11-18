@@ -148,14 +148,17 @@ public class ClaimViews {
                 list(claims.findByPolicyIdOrderBySubmittedAtDesc(p.getId())));
     }
 
+    @Cacheable(cacheNames = CacheConfig.CLAIMANT_CLAIMS, key = "#claimant.id()")
     public List<ListItem> submittedBy(CurrentUser claimant) {
         return list(claims.findByClaimantIdOrderByUpdatedAtDesc(claimant.id()));
     }
 
+    @Cacheable(cacheNames = CacheConfig.OFFICER_CLAIMS, key = "#staff.id()")
     public List<ListItem> assignedTo(CurrentUser staff) {
         return list(claims.findByAssignedOfficerIdOrderByUpdatedAtDesc(staff.id()));
     }
 
+    @Cacheable(cacheNames = CacheConfig.QUEUE, key = "#market")
     public List<ListItem> unassignedIn(String market) {
         return list(claims.findByMarketCodeAndStatusAndAssignedOfficerIdIsNullOrderBySubmittedAt(market, ClaimStatus.SUBMITTED));
     }

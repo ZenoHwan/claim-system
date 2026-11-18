@@ -265,13 +265,10 @@ class ReportsApiTest extends IntegrationTest {
     @Test
     void reportsAreStillAnsweredWhenRedisIsDown() throws Exception {
         apply(TestClaim.motorMy(0).submitted("100"));
-        REDIS.getDockerClient().pauseContainerCmd(REDIS.getContainerId()).exec();
-        try {
+        whileRedisIsDown(() -> {
             asManager("MY", "/api/reports/workload").andExpect(status().isOk()).andExpect(jsonPath("$.openClaims").value(1));
             apply(TestClaim.motorMy(0).submitted("100"));
-        } finally {
-            REDIS.getDockerClient().unpauseContainerCmd(REDIS.getContainerId()).exec();
-        }
+        });
         asManager("MY", "/api/reports/workload").andExpect(jsonPath("$.openClaims").value(2));
     }
 }

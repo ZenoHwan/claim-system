@@ -23,18 +23,20 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.JwsHeader;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
+import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.kafka.KafkaContainer;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
-/** Runs the real service against real PostgreSQL and Kafka, and talks to it only over HTTP and Kafka. */
+/** Runs the real service against real PostgreSQL, Kafka and Redis, and talks to it only over HTTP, Kafka and Redis. */
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = "claims.kafka.retry-interval=20ms")
@@ -55,6 +57,12 @@ abstract class IntegrationTestBase {
         KafkaContainer kafka() {
             return new KafkaContainer("apache/kafka:4.0.0");
         }
+
+        @Bean
+        @ServiceConnection(name = "redis")
+        GenericContainer<?> redis() {
+            return new GenericContainer<>("redis:7.4-alpine").withExposedPorts(6379);
+        }
     }
 
     static final JsonMapper JSON = JsonMapper.builder().build();
@@ -68,6 +76,13 @@ abstract class IntegrationTestBase {
 
     @Autowired
     KafkaTemplate<String, String> kafka;
+
+    @Autowired
+    StringRedisTemplate redisTemplate;
+
+    @Autowired
+    @org.springframework.beans.factory.annotation.Qualifier("redis")
+    GenericContainer<?> redis;
 
     // ---- tokens -------------------------------------------------------------------------------
 
@@ -117,6 +132,31 @@ abstract class IntegrationTestBase {
             org.assertj.core.api.Assertions.assertThat(inbox[0].get("items").size()).isEqualTo(count);
         });
         return inbox[0];
+    }
+
+    // ---- redis --------------------------------------------------------------------------------
+
+    /** Runs {@code action} with the Redis container frozen, then waits until Redis answers again. */
+    void whileRedisIsDown(ThrowingAction action) throws Exception {
+        redis.getDockerClient().pauseContainerCmd(redis.getContainerId()).exec();
+        try {
+            action.run();
+        } finally {
+            redis.getDockerClient().unpauseContainerCmd(redis.getContainerId()).exec();
+            // the next test must not start while Redis is still catching up
+            for (int attempt = 0; attempt < 50; attempt++) {
+                try {
+                    redisTemplate.getConnectionFactory().getConnection().ping();
+                    break;
+                } catch (RuntimeException stillResuming) {
+                    Thread.sleep(200);
+                }
+            }
+        }
+    }
+
+    interface ThrowingAction {
+        void run() throws Exception;
     }
 
     // ---- events -------------------------------------------------------------------------------

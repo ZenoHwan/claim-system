@@ -22,7 +22,8 @@ import tools.jackson.databind.json.JsonMapper;
 /**
  * The one place a claim state change is persisted. It writes the claim, its history row and its
  * outbox event together, inside the caller's transaction, so none can exist without the others.
- * It is also where the cached Follow-ups of the claim's claimant and officer are cleared.
+ * It is also where the cached lists that show this claim are cleared: the claimant's and officer's
+ * Follow-ups and claim lists, and the market's unassigned queue.
  */
 @Component
 public class ClaimChanges {
@@ -59,30 +60,39 @@ public class ClaimChanges {
 
         ClaimEvent event = new ClaimEvent(UUID.randomUUID(), eventType, now, claim.getVersion(), snapshot(claim));
         outbox.save(new OutboxEvent(event.eventId(), claim.getId(), eventType.name(), json.writeValueAsString(event), now));
-        forgetFollowUps(claim.getClaimantId(), claim.getAssignedOfficerId());
+        forgetCachedLists(claim);
     }
 
     /**
      * After commit, so a read cannot cache the old list between the eviction and the commit.
      * ponytail: a read that started before the commit can still put the old list back; the cache TTL bounds that.
      */
-    private void forgetFollowUps(UUID... users) {
+    private void forgetCachedLists(Claim claim) {
+        UUID claimant = claim.getClaimantId();
+        UUID officer = claim.getAssignedOfficerId();
+        String market = claim.getMarketCode();
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
-                for (UUID user : users) {
-                    if (user == null) {
-                        continue;
-                    }
-                    try {
-                        caches.getCache(CacheConfig.FOLLOW_UPS).evict(user);
-                    } catch (RuntimeException e) {
-                        // the change is committed; a failed eviction only leaves the old list until the TTL
-                        log.warn("Could not clear cached follow-ups for {}: {}", user, e.getMessage());
-                    }
-                }
+                forget(CacheConfig.FOLLOW_UPS, claimant);
+                forget(CacheConfig.FOLLOW_UPS, officer);
+                forget(CacheConfig.CLAIMANT_CLAIMS, claimant);
+                forget(CacheConfig.OFFICER_CLAIMS, officer);
+                forget(CacheConfig.QUEUE, market);
             }
         });
+    }
+
+    private void forget(String cache, Object key) {
+        if (key == null) {
+            return; // an unassigned claim has no officer yet
+        }
+        try {
+            caches.getCache(cache).evict(key);
+        } catch (RuntimeException e) {
+            // the change is committed; a failed eviction only leaves the old list until the TTL
+            log.warn("Could not clear cached {} for {}: {}", cache, key, e.getMessage());
+        }
     }
 
     private ClaimSnapshot snapshot(Claim claim) {

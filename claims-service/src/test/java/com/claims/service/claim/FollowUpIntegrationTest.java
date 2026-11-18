@@ -105,12 +105,9 @@ class FollowUpIntegrationTest extends IntegrationTest {
     @Test
     void followUpsAreStillAnsweredWhenRedisIsDown() throws Exception {
         String[] waiting = claimAwaitingInformation();
-        REDIS.getDockerClient().pauseContainerCmd(REDIS.getContainerId()).exec();
-        try {
+        whileRedisIsDown(() -> {
             assertThat(followUpFor("/api/claims/follow-ups", AISHA, waiting[0])).isNotNull();
             respond(AISHA, waiting[0], waiting[1], "Police report attached").andExpect(status().isOk());
-        } finally {
-            REDIS.getDockerClient().unpauseContainerCmd(REDIS.getContainerId()).exec();
-        }
+        });
     }
 }

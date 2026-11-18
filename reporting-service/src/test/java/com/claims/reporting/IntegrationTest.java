@@ -60,6 +60,29 @@ abstract class IntegrationTest {
         redis.getConnection().serverCommands().flushAll();
     }
 
+    /** Runs {@code action} with the Redis container frozen, then waits until Redis answers again. */
+    void whileRedisIsDown(ThrowingAction action) throws Exception {
+        REDIS.getDockerClient().pauseContainerCmd(REDIS.getContainerId()).exec();
+        try {
+            action.run();
+        } finally {
+            REDIS.getDockerClient().unpauseContainerCmd(REDIS.getContainerId()).exec();
+            // the next test must not start while Redis is still catching up
+            for (int attempt = 0; attempt < 50; attempt++) {
+                try {
+                    redis.getConnection().ping();
+                    break;
+                } catch (RuntimeException stillResuming) {
+                    Thread.sleep(200);
+                }
+            }
+        }
+    }
+
+    interface ThrowingAction {
+        void run() throws Exception;
+    }
+
     static String bearer(String role, String market) {
         var key = new SecretKeySpec(JWT_SECRET.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
         var claims = JwtClaimsSet.builder()
