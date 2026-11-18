@@ -17,7 +17,8 @@ and outstanding exposure.
 | `reporting-service/` | Workload, performance and exposure read model (port 8081) |
 | `notification-service/` | Inbox and live push (port 8082) |
 | `frontend/` | Angular app (port 4200) |
-| `docker-compose.yml` | PostgreSQL and Kafka |
+| `docker-compose.yml` | The whole stack: PostgreSQL, Kafka, the three services and the frontend |
+| `Dockerfile` | One image definition for all three services (`MODULE` build argument) |
 
 ## Prerequisites
 
@@ -28,23 +29,51 @@ and outstanding exposure.
 
 ## Start
 
-1. **Infrastructure.** PostgreSQL on host port **5433** (databases `claims_db`,
-   `reporting_db`, `notification_db`) and Kafka on **9092**:
+### Everything in Docker (simplest)
+
+Needs only Docker.
+
+```bash
+docker compose up -d --build
+```
+
+The first build takes a few minutes. Then open http://localhost:4200/login (customers) or
+http://localhost:4200/admin/login (staff).
+
+`docker compose ps` should list six containers: `postgres`, `kafka`, `claims-service`,
+`reporting-service`, `notification-service` and `frontend`. The `frontend` container is nginx
+serving the built Angular app and routing `/api` to the three services, so the browser talks to
+one origin.
+
+| Container | Host port |
+|---|---|
+| `frontend` (app + `/api` routing) | 4200 |
+| `claims-service` | 8080 |
+| `reporting-service` | 8081 |
+| `notification-service` | 8082 |
+| `postgres` (`claims_db`, `reporting_db`, `notification_db`) | 5433 |
+| `kafka` | 9092 |
+
+After changing code, rebuild just that part, for example `docker compose up -d --build claims-service`.
+To wipe all data: `docker compose down -v`.
+
+### On the host (faster while changing code)
+
+Needs JDK 21 and Node 22 as well. Stop the app containers first so the ports are free.
+
+1. Infrastructure only:
 
    ```bash
-   docker compose up -d
+   docker compose up -d postgres kafka
    ```
 
-   Wait until `docker compose ps` shows both as `healthy`.
-
-2. **Build and test** (integration tests start their own PostgreSQL and Kafka
-   containers, so Docker must be running):
+2. Build and run the tests (integration tests start their own PostgreSQL and Kafka containers):
 
    ```bash
    ./mvnw verify
    ```
 
-3. **Run the three services**, each in its own terminal:
+3. Run each service in its own terminal:
 
    ```bash
    java -jar claims-service/target/claims-service-0.0.1-SNAPSHOT.jar
@@ -58,16 +87,11 @@ and outstanding exposure.
    java -jar notification-service/target/notification-service-0.0.1-SNAPSHOT.jar
    ```
 
-4. **Run the frontend** (Node 22):
+4. Run the frontend dev server:
 
    ```bash
    cd frontend && npm install --legacy-peer-deps && npm start
    ```
-
-   Open http://localhost:4200/login (claimants) or
-   http://localhost:4200/admin/login (staff).
-
-To wipe local data: `docker compose down -v` and delete `data/`.
 
 ## A five-minute walkthrough
 

@@ -207,3 +207,11 @@ This part is where I pushed back the most, after actually using what the AI buil
 **AI then:** Service check with a clear 409, plus a partial unique index so two submissions at once cannot both pass. The policy dropdown greys out a policy with a claim in progress.
 **AI's note:** In real practice one policy can have several open claims for separate incidents. It built my rule and recorded the alternative in the design (D10a).
 **Why:** _TODO — the panel may ask why I chose the stricter rule_
+
+### 24. "Why are the other services not in Docker?"
+
+**Asked:** My Docker list only showed Postgres and Kafka.
+**AI said:** By design: only infrastructure was containerised, services ran with `java -jar` on the host so a code change needs a quick restart, not an image rebuild. Downside is five commands in four terminals. Offered to containerise everything.
+**What I did:** Asked for all of it in Docker Compose.
+**AI then:** One Dockerfile for the three services (build argument picks the module), nginx for the frontend that also routes `/api` to the services, and compose entries for all. It had to give Kafka two listeners, one for containers and one for the host, because a Kafka client reconnects to whatever address the broker advertises. Services run as a non-root user. Verified by walking a claim through the containers.
+**To check:** I should be able to explain the two Kafka listeners myself.

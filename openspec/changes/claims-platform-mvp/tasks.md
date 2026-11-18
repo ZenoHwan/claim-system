@@ -97,6 +97,11 @@ Working rules for every group: write the failing test first for anything with lo
 - [x] 12.3 New-claim form: Material calendar on the incident date, optional estimate, policies with a claim in progress disabled; verify each in the browser
 - [x] 12.4 New-claim form keeps its values and step across a page refresh; verify by refreshing on step 2 and landing back on step 2 with the values
 
+## 13. Run the whole stack in Docker
+
+- [x] 13.1 Add a service Dockerfile, a frontend Dockerfile with nginx routing `/api`, and compose entries for all four apps; verify `docker compose up -d --build` starts six containers
+- [x] 13.2 Give Kafka separate listeners for containers and for the host; verify a claim walked through the containerised stack moves exposure and creates notifications, and the SSE stream opens through nginx
+
 ## Workflow follow-up
 
 - Archive the change once the walkthrough has been given.
