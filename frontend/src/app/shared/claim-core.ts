@@ -88,6 +88,50 @@ import { statusLabel } from './status-chip';
         </mat-card-content>
       </mat-card>
 
+      @if (c.informationRequests.length > 0) {
+        <mat-card appearance="outlined">
+          <mat-card-header>
+            <mat-card-title>Questions and replies ({{ c.informationRequests.length }})</mat-card-title>
+          </mat-card-header>
+          <mat-card-content>
+            <ol class="trail">
+              @for (request of c.informationRequests; track request.id; let n = $index) {
+                <li>
+                  <div class="bubble question">
+                    <div class="who">
+                      Q{{ n + 1 }} · {{ request.requestedByName }}
+                      <span class="muted">· {{ request.requestedAt | date: 'd MMM, HH:mm' }}</span>
+                    </div>
+                    <div class="text">{{ request.question }}</div>
+                  </div>
+                  @if (request.status === 'ANSWERED') {
+                    <div class="bubble reply">
+                      <div class="who">
+                        {{ c.claimantName }}
+                        <span class="muted">· {{ request.answeredAt | date: 'd MMM, HH:mm' }}</span>
+                      </div>
+                      <div class="text">{{ request.responseText }}</div>
+                      @for (document of attachedTo(request.id); track document.id) {
+                        <div class="row document">
+                          <mat-icon aria-hidden="true">attach_file</mat-icon>
+                          <span class="name">
+                            {{ document.fileName }}
+                            <span class="muted meta">{{ kilobytes(document.sizeBytes) }}</span>
+                          </span>
+                          <button matButton (click)="download(document)">Download</button>
+                        </div>
+                      }
+                    </div>
+                  } @else {
+                    <div class="muted waiting">Waiting for the claimant's reply</div>
+                  }
+                </li>
+              }
+            </ol>
+          </mat-card-content>
+        </mat-card>
+      }
+
       <mat-card appearance="outlined">
         <mat-card-header><mat-card-title>Documents</mat-card-title></mat-card-header>
         <mat-card-content>
@@ -108,30 +152,6 @@ import { statusLabel } from './status-chip';
           }
         </mat-card-content>
       </mat-card>
-
-      @if (c.informationRequests.length > 0) {
-        <mat-card appearance="outlined">
-          <mat-card-header><mat-card-title>Information requests</mat-card-title></mat-card-header>
-          <mat-card-content class="stack">
-            @for (request of c.informationRequests; track request.id) {
-              <div>
-                <div>
-                  <strong>{{ request.question }}</strong>
-                </div>
-                <div class="muted">
-                  {{ request.requestedByName }} · {{ request.requestedAt | date: 'd MMM, HH:mm' }}
-                </div>
-                @if (request.status === 'ANSWERED') {
-                  <div class="answer">{{ request.responseText }}</div>
-                  <div class="muted">Answered {{ request.answeredAt | date: 'd MMM, HH:mm' }}</div>
-                } @else {
-                  <div class="muted">Waiting for the claimant</div>
-                }
-              </div>
-            }
-          </mat-card-content>
-        </mat-card>
-      }
 
       @if (c.assessment; as assessment) {
         <mat-card appearance="outlined">
@@ -209,8 +229,7 @@ import { statusLabel } from './status-chip';
     dd {
       margin: 0;
     }
-    .description,
-    .answer {
+    .description {
       white-space: pre-wrap;
     }
     .timeline {
@@ -224,6 +243,36 @@ import { statusLabel } from './status-chip';
     }
     .document {
       flex-wrap: nowrap;
+    }
+    .trail {
+      list-style: none;
+      margin: 8px 0 0;
+      padding: 0;
+      display: grid;
+      gap: 16px;
+    }
+    .bubble {
+      padding: 8px 12px;
+      border-radius: 12px;
+    }
+    .bubble .who {
+      font: var(--mat-sys-label-large);
+    }
+    .bubble .text {
+      white-space: pre-wrap;
+      margin-top: 2px;
+    }
+    .question {
+      background: var(--mat-sys-surface-container-high);
+      margin-right: 32px;
+    }
+    .reply {
+      background: var(--mat-sys-secondary-container);
+      margin: 8px 0 0 32px;
+    }
+    .waiting {
+      margin: 8px 0 0 32px;
+      font-style: italic;
     }
     .document .name {
       flex: 1;
@@ -245,6 +294,11 @@ export class ClaimCore {
   /** One line for display; claims from before the split have only line 1 and no postal code. */
   protected addressText(a: { addressLine1?: string; addressLine2?: string; addressLine3?: string; postalCode?: string }) {
     return [a.addressLine1, a.addressLine2, a.addressLine3, a.postalCode].filter(Boolean).join(', ');
+  }
+
+  /** Files the claimant sent with their reply to this question. */
+  protected attachedTo(requestId: string) {
+    return this.claim().documents.filter((d) => d.informationRequestId === requestId);
   }
 
   protected kilobytes(bytes: number) {
