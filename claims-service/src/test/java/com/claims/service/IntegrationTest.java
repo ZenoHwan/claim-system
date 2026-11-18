@@ -33,7 +33,7 @@ import tools.jackson.databind.json.JsonMapper;
 @SpringBootTest
 public abstract class IntegrationTest {
 
-    public static final String PASSWORD = "Passw0rd!";
+    public static final String PASSWORD = "password";
     public static final String AISHA = "aisha@claims.test";
     public static final String DANIEL = "daniel@claims.test";
     public static final String SITI_SG = "siti@claims.test";

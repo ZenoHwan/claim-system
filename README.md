@@ -106,7 +106,7 @@ The frontend has no automated tests; it was checked by hand in the browser.
 
 ## Seeded accounts (local demo data only)
 
-Every account uses the password `Passw0rd!`.
+Every account uses the password `password`. Demo data only: the seed lives in `db/seed` and must not be loaded anywhere real.
 
 | Email | Role | Market | Sign in at |
 |---|---|---|---|
