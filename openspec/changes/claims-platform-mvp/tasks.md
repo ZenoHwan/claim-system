@@ -25,7 +25,7 @@ Working rules for every group: write the failing test first for anything with lo
 ## 4. claims-service: claim lifecycle
 
 - [ ] 4.1 Add migrations for `claim`, `motor_claim_detail`, `property_claim_detail`, `claim_status_history`, `reserve`, `assessment`, `decision`, `outbox_event`; verify the app starts and the schema matches `docs/er-diagram.md`
-- [ ] 4.2 Test-first: the claim state machine accepts each permitted transition and refuses every other; verify unit tests cover all status pairs
+- [x] 4.2 Test-first: the claim state machine accepts each permitted transition and refuses every other; verify unit tests cover all status pairs
 - [ ] 4.3 Test-first: submit a claim (ownership, policy period, field validation, line-specific details, claim number, initial reserve); verify the submission scenarios in claim-lifecycle pass
 - [ ] 4.4 Test-first: claimant lists their claims and opens one with its timeline, and cannot open another claimant's; verify the tracking scenarios pass
 - [ ] 4.5 Test-first: unassigned queue by market and pick-up, including a concurrent pick-up where exactly one caller wins and the other gets 409; verify the pick-up scenarios pass
