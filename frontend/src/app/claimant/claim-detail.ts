@@ -9,6 +9,7 @@ import { MatInputModule } from '@angular/material/input';
 import { concat, last, of, switchMap, tap } from 'rxjs';
 import { ClaimDetail } from '../api/types';
 import { ClaimsApi, documentProblem } from '../core/claims-api';
+import { FollowUps } from '../core/follow-ups';
 import { problemMessage } from '../core/http';
 import { Notifications } from '../core/notifications';
 import { ClaimCore } from '../shared/claim-core';
@@ -105,6 +106,7 @@ import { StatusChip } from '../shared/status-chip';
 export class ClaimDetailPage {
   private readonly api = inject(ClaimsApi);
   private readonly notifications = inject(Notifications);
+  private readonly followUps = inject(FollowUps);
 
   /** Bound from the route. */
   readonly id = input.required<string>();
@@ -179,6 +181,7 @@ export class ClaimDetailPage {
           this.reply.reset();
           this.files.set([]);
           this.busy.set(false);
+          this.followUps.load(); // your own reply sends you no notification, so refresh the count here
         },
         error: (error) => {
           this.busy.set(false);

@@ -9,6 +9,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { Observable } from 'rxjs';
 import { ClaimDetail, PaymentMethod } from '../api/types';
 import { ClaimsApi } from '../core/claims-api';
+import { FollowUps } from '../core/follow-ups';
 import { problemMessage } from '../core/http';
 import { Notifications } from '../core/notifications';
 import { Session } from '../core/session';
@@ -222,6 +223,7 @@ export class Workbench {
   private readonly api = inject(ClaimsApi);
   private readonly session = inject(Session);
   private readonly notifications = inject(Notifications);
+  private readonly followUps = inject(FollowUps);
   private readonly fb = inject(FormBuilder).nonNullable;
 
   /** Bound from the route. */
@@ -314,6 +316,7 @@ export class Workbench {
         this.busy.set(false);
         onSuccess?.();
         this.show(claim);
+        this.followUps.load(); // asking or assessing changes the Follow-ups count, and no notification says so
       },
       error: (error) => {
         this.busy.set(false);
