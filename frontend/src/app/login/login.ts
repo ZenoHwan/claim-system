@@ -4,6 +4,7 @@ import { Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { Door } from '../api/types';
 import { Session } from '../core/session';
@@ -17,6 +18,7 @@ import { Session } from '../core/session';
     MatButtonModule,
     MatCardModule,
     MatFormFieldModule,
+    MatIconModule,
     MatInputModule,
   ],
   template: `
@@ -49,10 +51,20 @@ import { Session } from '../core/session';
               <mat-label>Password</mat-label>
               <input
                 matInput
-                type="password"
+                [type]="showPassword() ? 'text' : 'password'"
                 formControlName="password"
                 autocomplete="current-password"
               />
+              <button
+                matIconButton
+                matSuffix
+                type="button"
+                (click)="showPassword.set(!showPassword())"
+                [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'"
+                [attr.aria-pressed]="showPassword()"
+              >
+                <mat-icon>{{ showPassword() ? 'visibility_off' : 'visibility' }}</mat-icon>
+              </button>
             </mat-form-field>
             @if (error()) {
               <p class="error-text" role="alert">{{ error() }}</p>
@@ -132,6 +144,7 @@ export class Login {
   });
   protected readonly error = signal('');
   protected readonly busy = signal(false);
+  protected readonly showPassword = signal(false);
 
   protected signIn() {
     const { email, password } = this.form.getRawValue();
