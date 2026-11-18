@@ -35,4 +35,8 @@ final class ClaimRecords {
     interface Documents extends JpaRepository<ClaimDocument, UUID> {
         List<ClaimDocument> findByClaimIdOrderByUploadedAt(UUID claimId);
     }
+
+    interface Payments extends JpaRepository<Payment, UUID> {
+        Optional<Payment> findByClaimId(UUID claimId);
+    }
 }

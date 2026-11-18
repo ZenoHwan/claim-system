@@ -43,9 +43,9 @@ Working rules for every group: write the failing test first for anything with lo
 
 ## 6. claims-service: settlement
 
-- [ ] 6.1 Add the `payment` migration with a unique constraint on `claim_id`; verify by test that inserting a second payment for a claim fails at the database
-- [ ] 6.2 Test-first: approval raises a REQUESTED payment and rejection raises none; verify the payment-raised scenarios pass
-- [ ] 6.3 Test-first: recording the payment marks it PAID, settles the claim and releases the reserve, with the conflict and validation cases; verify the claim-settlement scenarios pass
+- [x] 6.1 Add the `payment` migration with a unique constraint on `claim_id`; verify by test that inserting a second payment for a claim fails at the database
+- [x] 6.2 Test-first: approval raises a REQUESTED payment and rejection raises none; verify the payment-raised scenarios pass
+- [x] 6.3 Test-first: recording the payment marks it PAID, settles the claim and releases the reserve, with the conflict and validation cases; verify the claim-settlement scenarios pass
 
 ## 7. claims-service: event publishing
 

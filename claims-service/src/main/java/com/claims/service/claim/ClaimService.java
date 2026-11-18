@@ -33,13 +33,14 @@ class ClaimService {
     private final ClaimRecords.Reserves reserves;
     private final ClaimRecords.Assessments assessments;
     private final ClaimRecords.Decisions decisions;
+    private final SettlementService settlement;
     private final JdbcTemplate jdbc;
 
     ClaimService(
             ClaimAccess access, ClaimChanges changes, PolicyRepository policies,
             ClaimRecords.MotorDetails motorDetails, ClaimRecords.PropertyDetails propertyDetails,
             ClaimRecords.Reserves reserves, ClaimRecords.Assessments assessments, ClaimRecords.Decisions decisions,
-            JdbcTemplate jdbc) {
+            SettlementService settlement, JdbcTemplate jdbc) {
         this.access = access;
         this.changes = changes;
         this.policies = policies;
@@ -48,6 +49,7 @@ class ClaimService {
         this.reserves = reserves;
         this.assessments = assessments;
         this.decisions = decisions;
+        this.settlement = settlement;
         this.jdbc = jdbc;
     }
 
@@ -111,6 +113,7 @@ class ClaimService {
             approve(claim, request.approvedAmount(), now);
             changes.record(claim, from, staff.id(), null, ClaimEventType.CLAIM_APPROVED);
             decisions.save(new Decision(claimId, Decision.Outcome.APPROVED, request.approvedAmount(), request.reason(), staff.id(), now));
+            settlement.raisePayment(claim, request.approvedAmount(), now);
         } else {
             if (request.reason() == null || request.reason().isBlank()) {
                 throw ApiException.invalid("reason", "A reason is required to reject a claim");

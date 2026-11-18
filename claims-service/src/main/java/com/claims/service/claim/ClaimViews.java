@@ -44,6 +44,12 @@ public class ClaimViews {
             UUID id, String fileName, String contentType, long sizeBytes, UUID informationRequestId,
             String uploadedByName, Instant uploadedAt) {}
 
+    /** {@code reference} is the insurer's own payment reference: staff only. */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record PaymentView(
+            String payeeName, Payment.Method method, BigDecimal amount, String currency, Payment.Status status,
+            String reference, Instant requestedAt, Instant paidAt) {}
+
     /** {@code currentReserve} and {@code assessment} are internal figures: null, and so omitted, for a claimant. */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record Detail(
@@ -54,7 +60,7 @@ public class ClaimViews {
             long version, Instant submittedAt, Instant updatedAt,
             MotorView motor, PropertyView property, List<HistoryEntry> history,
             BigDecimal currentReserve, AssessmentView assessment, DecisionView decision,
-            List<InformationRequestView> informationRequests, List<DocumentView> documents) {}
+            List<InformationRequestView> informationRequests, List<DocumentView> documents, PaymentView payment) {}
 
     private final ClaimAccess access;
     private final ClaimRepository claims;
@@ -67,12 +73,14 @@ public class ClaimViews {
     private final ClaimRecords.Decisions decisions;
     private final ClaimRecords.InformationRequests informationRequests;
     private final ClaimRecords.Documents documents;
+    private final ClaimRecords.Payments payments;
 
     ClaimViews(
             ClaimAccess access, ClaimRepository claims, AppUserRepository users, PolicyRepository policies,
             ClaimRecords.MotorDetails motorDetails, ClaimRecords.PropertyDetails propertyDetails,
             ClaimRecords.History history, ClaimRecords.Assessments assessments, ClaimRecords.Decisions decisions,
-            ClaimRecords.InformationRequests informationRequests, ClaimRecords.Documents documents) {
+            ClaimRecords.InformationRequests informationRequests, ClaimRecords.Documents documents,
+            ClaimRecords.Payments payments) {
         this.access = access;
         this.claims = claims;
         this.users = users;
@@ -84,6 +92,7 @@ public class ClaimViews {
         this.decisions = decisions;
         this.informationRequests = informationRequests;
         this.documents = documents;
+        this.payments = payments;
     }
 
     public List<ListItem> submittedBy(CurrentUser claimant) {
@@ -138,7 +147,12 @@ public class ClaimViews {
                         .map(r -> new InformationRequestView(
                                 r.id, r.question, r.status, name(r.requestedBy), r.requestedAt, r.responseText, r.answeredAt))
                         .toList(),
-                documents.findByClaimIdOrderByUploadedAt(claimId).stream().map(this::document).toList());
+                documents.findByClaimIdOrderByUploadedAt(claimId).stream().map(this::document).toList(),
+                payments.findByClaimId(claimId)
+                        .map(p -> new PaymentView(
+                                p.payeeName, p.method, p.amount, p.currency, p.status,
+                                internal ? p.reference : null, p.requestedAt, p.paidAt))
+                        .orElse(null));
     }
 
     DocumentView document(ClaimDocument d) {

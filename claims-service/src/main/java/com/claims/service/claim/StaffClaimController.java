@@ -20,11 +20,14 @@ class StaffClaimController {
 
     private final ClaimService service;
     private final InformationRequestService informationRequests;
+    private final SettlementService settlement;
     private final ClaimViews views;
 
-    StaffClaimController(ClaimService service, InformationRequestService informationRequests, ClaimViews views) {
+    StaffClaimController(
+            ClaimService service, InformationRequestService informationRequests, SettlementService settlement, ClaimViews views) {
         this.service = service;
         this.informationRequests = informationRequests;
+        this.settlement = settlement;
         this.views = views;
     }
 
@@ -69,6 +72,16 @@ class StaffClaimController {
             @Valid @RequestBody InformationRequestService.AskRequest request) {
         CurrentUser staff = CurrentUser.from(jwt);
         informationRequests.ask(staff, claimId, request);
+        return views.detail(staff, claimId);
+    }
+
+    /** Records that the approved amount has been paid, which settles the claim. */
+    @PostMapping("/{claimId}/payment")
+    ClaimViews.Detail recordPayment(
+            @AuthenticationPrincipal Jwt jwt, @PathVariable UUID claimId,
+            @Valid @RequestBody SettlementService.RecordPaymentRequest request) {
+        CurrentUser staff = CurrentUser.from(jwt);
+        settlement.recordPayment(staff, claimId, request);
         return views.detail(staff, claimId);
     }
 }
