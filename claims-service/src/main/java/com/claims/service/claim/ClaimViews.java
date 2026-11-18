@@ -14,6 +14,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Component;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.transaction.annotation.Transactional;
 
 /** Read side of the claims API: what a claim looks like to the person asking. */
@@ -111,6 +112,7 @@ public class ClaimViews {
      * their claims still waiting for the claimant (OPEN), and replies they have not acted on yet (ANSWERED,
      * claim back under review). Either way it is the claim's latest question; acting on the claim clears it.
      */
+    @Cacheable(cacheNames = CacheConfig.FOLLOW_UPS, key = "#user.id()")
     public List<FollowUp> followUps(CurrentUser user) {
         List<Claim> found = user.isStaff()
                 ? claims.findByAssignedOfficerIdOrderByUpdatedAtDesc(user.id())

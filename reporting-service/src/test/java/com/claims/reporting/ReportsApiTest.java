@@ -236,4 +236,42 @@ class ReportsApiTest extends IntegrationTest {
                 .andExpect(jsonPath("$.paths['/api/reports/performance'].get").exists())
                 .andExpect(jsonPath("$.paths['/api/reports/exposure'].get").exists());
     }
+
+    // --- cache ---
+
+    @Test
+    void aReportComesFromTheCacheUntilAnEventForItsMarketIsApplied() throws Exception {
+        var a = TestClaim.motorMy(0);
+        apply(a.submitted("100"));
+        asManager("MY", "/api/reports/workload").andExpect(jsonPath("$.openClaims").value(1));
+        asManager("MY", "/api/reports/exposure").andExpect(jsonPath("$.rows", hasSize(1)));
+
+        // Changed behind the projector's back: still answered from Redis.
+        jdbc.sql("UPDATE claim_summary SET status = 'SETTLED'").update();
+        asManager("MY", "/api/reports/workload").andExpect(jsonPath("$.openClaims").value(1));
+
+        // A Singapore event leaves the Malaysian workload cached, but exposure covers every market.
+        apply(TestClaim.of("SG", "MOTOR", "SGD").submitted("100"));
+        asManager("MY", "/api/reports/workload").andExpect(jsonPath("$.openClaims").value(1));
+        asManager("MY", "/api/reports/exposure")
+                .andExpect(jsonPath("$.rows", hasSize(1)))
+                .andExpect(jsonPath("$.rows[0].marketCode").value("SG"));
+
+        // A Malaysian event clears the Malaysian reports.
+        apply(TestClaim.motorMy(0).submitted("100"), TestClaim.motorMy(0).submitted("100"));
+        asManager("MY", "/api/reports/workload").andExpect(jsonPath("$.openClaims").value(2));
+    }
+
+    @Test
+    void reportsAreStillAnsweredWhenRedisIsDown() throws Exception {
+        apply(TestClaim.motorMy(0).submitted("100"));
+        REDIS.getDockerClient().pauseContainerCmd(REDIS.getContainerId()).exec();
+        try {
+            asManager("MY", "/api/reports/workload").andExpect(status().isOk()).andExpect(jsonPath("$.openClaims").value(1));
+            apply(TestClaim.motorMy(0).submitted("100"));
+        } finally {
+            REDIS.getDockerClient().unpauseContainerCmd(REDIS.getContainerId()).exec();
+        }
+        asManager("MY", "/api/reports/workload").andExpect(jsonPath("$.openClaims").value(2));
+    }
 }

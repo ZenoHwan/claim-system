@@ -4,13 +4,20 @@ import com.claims.events.ClaimEvent;
 import com.claims.events.ClaimSnapshot;
 import java.sql.Timestamp;
 import java.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.cache.CacheManager;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /** Folds claim events into claim_summary. Safe under duplicate, out-of-order and replayed delivery. */
 @Component
 class ClaimSummaryProjector {
+
+    private static final Logger log = LoggerFactory.getLogger(ClaimSummaryProjector.class);
 
     private static final String UPSERT = """
             INSERT INTO claim_summary (claim_id, claim_number, market_code, line_of_business, status, officer_id,
@@ -27,9 +34,11 @@ class ClaimSummaryProjector {
             """;
 
     private final JdbcClient jdbc;
+    private final CacheManager caches;
 
-    ClaimSummaryProjector(JdbcClient jdbc) {
+    ClaimSummaryProjector(JdbcClient jdbc, CacheManager caches) {
         this.jdbc = jdbc;
+        this.caches = caches;
     }
 
     /** The event-id insert and the upsert share one transaction: either both happen or neither does. */
@@ -59,6 +68,27 @@ class ClaimSummaryProjector {
                 .param("settledAt", timestamp(claim.settledAt()))
                 .param("occurredAt", timestamp(event.occurredAt()))
                 .update();
+        forgetReports(claim.marketCode());
+    }
+
+    /**
+     * After commit, so a read cannot cache the old figures between the eviction and the commit.
+     * ponytail: a read that started before the commit can still put old figures back; the cache TTL bounds that.
+     */
+    private void forgetReports(String market) {
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                try {
+                    caches.getCache(CacheConfig.WORKLOAD).evict(market);
+                    caches.getCache(CacheConfig.PERFORMANCE).evict(market);
+                    caches.getCache(CacheConfig.EXPOSURE).evict(CacheConfig.ALL_MARKETS);
+                } catch (RuntimeException e) {
+                    // the event is applied; a failed eviction only leaves old figures until the TTL
+                    log.warn("Could not clear cached reports for {}: {}", market, e.getMessage());
+                }
+            }
+        });
     }
 
     // The PostgreSQL driver does not accept java.time.Instant as a parameter.

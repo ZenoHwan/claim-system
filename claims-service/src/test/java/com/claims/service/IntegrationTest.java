@@ -26,11 +26,13 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
-/** Runs the real application against a real PostgreSQL. One container is shared by every test class. */
+/** Runs the real application against a real PostgreSQL and Redis. One of each is shared by every test class. */
 @SpringBootTest
 public abstract class IntegrationTest {
 
@@ -44,11 +46,13 @@ public abstract class IntegrationTest {
     public static final String MANAGER = "manager.my@claims.test";
 
     static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:17");
+    protected static final GenericContainer<?> REDIS = new GenericContainer<>("redis:7.4-alpine").withExposedPorts(6379);
 
     protected static final Path DOCUMENTS;
 
     static {
         POSTGRES.start();
+        REDIS.start();
         try {
             DOCUMENTS = Files.createTempDirectory("claim-documents");
         } catch (IOException e) {
@@ -61,6 +65,8 @@ public abstract class IntegrationTest {
         registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
         registry.add("spring.datasource.username", POSTGRES::getUsername);
         registry.add("spring.datasource.password", POSTGRES::getPassword);
+        registry.add("spring.data.redis.host", REDIS::getHost);
+        registry.add("spring.data.redis.port", () -> REDIS.getMappedPort(6379));
         registry.add("claims.documents.dir", () -> DOCUMENTS.toString());
         // tests drive the outbox relay themselves instead of waiting on the scheduler
         registry.add("claims.outbox.relay.enabled", () -> "false");
@@ -75,9 +81,13 @@ public abstract class IntegrationTest {
     protected final JsonMapper json = JsonMapper.builder().build();
     protected MockMvc mvc;
 
+    @Autowired
+    private RedisConnectionFactory redis;
+
     @BeforeEach
     void buildMockMvc() {
         mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
+        redis.getConnection().serverCommands().flushAll(); // each test starts with an empty cache
     }
 
     protected ResultActions login(String email, String password, String door) throws Exception {

@@ -2,7 +2,7 @@
 #   docker compose up -d --build     ->  http://localhost:4200
 #
 # To work on the code instead, start only the infrastructure and run the services on the host:
-#   docker compose up -d postgres kafka
+#   docker compose up -d postgres kafka redis
 services:
   postgres:
     image: postgres:17
@@ -47,6 +47,18 @@ services:
       timeout: 10s
       retries: 15
 
+  redis:
+    image: redis:7.4-alpine
+    # a cache, not a store: no persistence, and the least recently used keys go first when memory is full
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
   claims-service:
     build:
       context: .
@@ -55,6 +67,7 @@ services:
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/claims_db
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SPRING_DATA_REDIS_HOST: redis
       CLAIMS_DOCUMENTS_DIR: /data/documents
     volumes:
       - claim-documents:/data/documents
@@ -65,6 +78,8 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+      redis:
+        condition: service_healthy
 
   reporting-service:
     build:
@@ -74,12 +89,15 @@ services:
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/reporting_db
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SPRING_DATA_REDIS_HOST: redis
     ports:
       - "8081:8081"
     depends_on:
       postgres:
         condition: service_healthy
       kafka:
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
   notification-service:

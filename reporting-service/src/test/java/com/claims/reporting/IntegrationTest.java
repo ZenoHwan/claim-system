@@ -15,11 +15,13 @@ import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.kafka.KafkaContainer;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
 
-/** Real PostgreSQL and Kafka, started once for the whole test run. */
+/** Real PostgreSQL, Kafka and Redis, started once for the whole test run. */
 @SpringBootTest
 abstract class IntegrationTest {
 
@@ -27,10 +29,12 @@ abstract class IntegrationTest {
 
     static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:17");
     static final KafkaContainer KAFKA = new KafkaContainer("apache/kafka:4.0.0");
+    static final GenericContainer<?> REDIS = new GenericContainer<>("redis:7.4-alpine").withExposedPorts(6379);
 
     static {
         POSTGRES.start();
         KAFKA.start();
+        REDIS.start();
     }
 
     @DynamicPropertySource
@@ -39,15 +43,21 @@ abstract class IntegrationTest {
         registry.add("spring.datasource.username", POSTGRES::getUsername);
         registry.add("spring.datasource.password", POSTGRES::getPassword);
         registry.add("spring.kafka.bootstrap-servers", KAFKA::getBootstrapServers);
+        registry.add("spring.data.redis.host", REDIS::getHost);
+        registry.add("spring.data.redis.port", () -> REDIS.getMappedPort(6379));
         registry.add("claims.jwt.secret", () -> JWT_SECRET);
     }
 
     @Autowired
     JdbcClient jdbc;
 
+    @Autowired
+    RedisConnectionFactory redis;
+
     @BeforeEach
     void emptyReadModel() {
         jdbc.sql("TRUNCATE claim_summary, processed_event").update();
+        redis.getConnection().serverCommands().flushAll();
     }
 
     static String bearer(String role, String market) {

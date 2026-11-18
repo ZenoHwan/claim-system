@@ -78,4 +78,39 @@ class FollowUpIntegrationTest extends IntegrationTest {
     void someoneElsesPolicyIsNotFound() throws Exception {
         getAs("/api/policies/" + AISHA_MOTOR, bearer(DANIEL)).andExpect(status().isNotFound());
     }
+
+    // --- cache ---
+
+    @Test
+    void followUpsComeFromTheCacheUntilTheClaimChanges() throws Exception {
+        String[] waiting = claimAwaitingInformation();
+        String staff = "/api/staff/claims/follow-ups";
+        JsonNode first = followUpFor("/api/claims/follow-ups", AISHA, waiting[0]);
+        followUpFor(staff, OFFICER_1, waiting[0]);
+
+        // Changed behind the application's back: both lists are still answered from Redis, unchanged.
+        jdbc.update("UPDATE information_request SET question = 'Changed in the database' WHERE id = ?::uuid", waiting[1]);
+        assertThat(followUpFor("/api/claims/follow-ups", AISHA, waiting[0])).isEqualTo(first);
+        assertThat(followUpFor(staff, OFFICER_1, waiting[0]).get("question").asString()).isEqualTo("Please upload the police report");
+
+        // A change through the application clears the claimant's and the officer's entries.
+        respond(AISHA, waiting[0], waiting[1], "Police report attached").andExpect(status().isOk());
+
+        assertThat(followUpFor("/api/claims/follow-ups", AISHA, waiting[0])).isNull();
+        JsonNode reply = followUpFor(staff, OFFICER_1, waiting[0]);
+        assertThat(reply.get("status").asString()).isEqualTo("ANSWERED");
+        assertThat(reply.get("question").asString()).isEqualTo("Changed in the database");
+    }
+
+    @Test
+    void followUpsAreStillAnsweredWhenRedisIsDown() throws Exception {
+        String[] waiting = claimAwaitingInformation();
+        REDIS.getDockerClient().pauseContainerCmd(REDIS.getContainerId()).exec();
+        try {
+            assertThat(followUpFor("/api/claims/follow-ups", AISHA, waiting[0])).isNotNull();
+            respond(AISHA, waiting[0], waiting[1], "Police report attached").andExpect(status().isOk());
+        } finally {
+            REDIS.getDockerClient().unpauseContainerCmd(REDIS.getContainerId()).exec();
+        }
+    }
 }

@@ -9,25 +9,36 @@ import com.claims.service.outbox.OutboxEvent;
 import com.claims.service.outbox.OutboxRepository;
 import java.time.Instant;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
  * The one place a claim state change is persisted. It writes the claim, its history row and its
  * outbox event together, inside the caller's transaction, so none can exist without the others.
+ * It is also where the cached Follow-ups of the claim's claimant and officer are cleared.
  */
 @Component
 public class ClaimChanges {
+
+    private static final Logger log = LoggerFactory.getLogger(ClaimChanges.class);
 
     private final ClaimRepository claims;
     private final ClaimRecords.History history;
     private final OutboxRepository outbox;
     private final AppUserRepository users;
     private final JsonMapper json;
+    private final CacheManager caches;
 
-    ClaimChanges(ClaimRepository claims, ClaimRecords.History history, OutboxRepository outbox, AppUserRepository users, JsonMapper json) {
+    ClaimChanges(ClaimRepository claims, ClaimRecords.History history, OutboxRepository outbox, AppUserRepository users,
+            JsonMapper json, CacheManager caches) {
+        this.caches = caches;
         this.claims = claims;
         this.history = history;
         this.outbox = outbox;
@@ -48,6 +59,30 @@ public class ClaimChanges {
 
         ClaimEvent event = new ClaimEvent(UUID.randomUUID(), eventType, now, claim.getVersion(), snapshot(claim));
         outbox.save(new OutboxEvent(event.eventId(), claim.getId(), eventType.name(), json.writeValueAsString(event), now));
+        forgetFollowUps(claim.getClaimantId(), claim.getAssignedOfficerId());
+    }
+
+    /**
+     * After commit, so a read cannot cache the old list between the eviction and the commit.
+     * ponytail: a read that started before the commit can still put the old list back; the cache TTL bounds that.
+     */
+    private void forgetFollowUps(UUID... users) {
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                for (UUID user : users) {
+                    if (user == null) {
+                        continue;
+                    }
+                    try {
+                        caches.getCache(CacheConfig.FOLLOW_UPS).evict(user);
+                    } catch (RuntimeException e) {
+                        // the change is committed; a failed eviction only leaves the old list until the TTL
+                        log.warn("Could not clear cached follow-ups for {}: {}", user, e.getMessage());
+                    }
+                }
+            }
+        });
     }
 
     private ClaimSnapshot snapshot(Claim claim) {

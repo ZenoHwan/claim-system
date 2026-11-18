@@ -8,10 +8,11 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
-/** Every figure is an aggregate over claim_summary, computed when asked. */
+/** Every figure is an aggregate over claim_summary, computed when asked and then cached until the next event (see CacheConfig). */
 @Repository
 class ReportQueries {
 
@@ -36,7 +37,8 @@ class ReportQueries {
         this.jdbc = jdbc;
     }
 
-    Workload workload(String market) {
+    @Cacheable(cacheNames = CacheConfig.WORKLOAD, key = "#market")
+    public Workload workload(String market) {
         Map<String, Object> totals = jdbc.sql("""
                 SELECT count(*)                                       AS open,
                        count(*) FILTER (WHERE officer_id IS NULL)     AS unassigned,
@@ -76,7 +78,8 @@ class ReportQueries {
                 new Ageing((long) totals.get("days_0_2"), (long) totals.get("days_3_7"), (long) totals.get("days_8_plus")));
     }
 
-    Performance performance(String market) {
+    @Cacheable(cacheNames = CacheConfig.PERFORMANCE, key = "#market")
+    public Performance performance(String market) {
         Map<String, Object> row = jdbc.sql("""
                 SELECT count(*) AS decided,
                        avg(extract(epoch FROM decided_at - submitted_at) / 86400)::float8 AS avg_days
@@ -89,7 +92,8 @@ class ReportQueries {
     }
 
     /** Grouped by currency as well, so amounts in different currencies can never be added together. */
-    Exposure exposure() {
+    @Cacheable(cacheNames = CacheConfig.EXPOSURE, key = "'all'")
+    public Exposure exposure() {
         List<ExposureRow> rows = jdbc.sql("""
                 SELECT market_code, line_of_business, currency, count(*) AS open_claims, sum(current_reserve) AS reserve
                 FROM claim_summary

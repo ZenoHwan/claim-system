@@ -8,6 +8,13 @@ spring:
     url: jdbc:postgresql://localhost:5433/reporting_db
     username: claims
     password: claims
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      # a cache that is slow to answer is worse than none: give up quickly and read the database
+      timeout: 500ms
+      connect-timeout: 500ms
   kafka:
     bootstrap-servers: localhost:9092
     consumer:
@@ -15,6 +22,9 @@ spring:
       auto-offset-reset: earliest # a new read model starts from the first event ever published
 
 claims:
+  cache:
+    # upper bound on how stale a cached report can be; each applied event clears its market straight away
+    ttl: 60s
   jwt:
     # Shared signing key, dev default only. Supply CLAIMS_JWT_SECRET anywhere that matters.
     secret: ${CLAIMS_JWT_SECRET:dev-only-secret-change-me-0123456789abcdef}
