@@ -181,7 +181,7 @@ AI's work most often.
 
 ### 20. Calendar on the date field
 
-**What I did:** I added a calendar picker to the date field.
+**What I did:** I had a calendar picker added to the date field.
 **AI first:** It added a button that opens the browser's built-in date picker, avoiding a new library. This did not work correctly in my browser.
 **AI then:** It switched to the Angular Material datepicker, with day, month and year selection and future dates disabled.
 **Lesson:** My hands-on testing showed that the minimal native option was not sufficient here. The AI had verified only that the button invoked the picker, not that a calendar appeared, and it stated this limitation.
