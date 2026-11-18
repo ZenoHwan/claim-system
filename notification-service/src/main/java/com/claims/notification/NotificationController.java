@@ -45,6 +45,13 @@ class NotificationController {
         }
     }
 
+    /** Opening the bell counts as seeing everything in it. */
+    @PostMapping("/read-all")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void markAllRead(@AuthenticationPrincipal Jwt token) {
+        store.markAllRead(userId(token));
+    }
+
     @GetMapping(path = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     SseEmitter stream(@AuthenticationPrincipal Jwt token) {
         return liveStream.subscribe(userId(token));

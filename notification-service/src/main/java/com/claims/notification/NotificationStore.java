@@ -66,4 +66,10 @@ class NotificationStore {
                 .params(id, recipientId)
                 .update() == 1;
     }
+
+    void markAllRead(UUID recipientId) {
+        jdbc.sql("UPDATE notification SET read_at = now() WHERE recipient_id = ? AND read_at IS NULL")
+                .param(recipientId)
+                .update();
+    }
 }

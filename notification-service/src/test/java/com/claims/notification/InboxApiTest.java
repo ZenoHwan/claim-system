@@ -58,6 +58,26 @@ class InboxApiTest extends IntegrationTestBase {
     }
 
     @Test
+    void markingAllAsReadClearsOnlyTheCallersUnreadCount() throws Exception {
+        UUID aisha = UUID.randomUUID();
+        UUID ben = UUID.randomUUID();
+        publish(event(CLAIM_ASSIGNED, claim(aisha, UUID.randomUUID())));
+        publish(event(CLAIM_APPROVED, claim(aisha, UUID.randomUUID())));
+        publish(event(CLAIM_ASSIGNED, claim(ben, UUID.randomUUID())));
+        awaitInbox(aisha, 2);
+        awaitInbox(ben, 1);
+
+        var response = post("/api/notifications/read-all", tokenFor(aisha, "CLAIMANT"));
+
+        assertThat(response.statusCode()).isEqualTo(204);
+        var inbox = inboxOf(aisha);
+        assertThat(inbox.get("unreadCount").asInt()).isZero();
+        assertThat(inbox.get("items").get(0).get("read").asBoolean()).isTrue();
+        assertThat(inbox.get("items").get(1).get("read").asBoolean()).isTrue();
+        assertThat(inboxOf(ben).get("unreadCount").asInt()).isEqualTo(1);
+    }
+
+    @Test
     void anotherUsersNotificationCannotBeMarkedAsRead() throws Exception {
         UUID aisha = UUID.randomUUID();
         UUID ben = UUID.randomUUID();
