@@ -124,3 +124,23 @@ export type NotificationItem = Has<
   'id' | 'recipientId' | 'claimId' | 'claimNumber' | 'type' | 'message' | 'createdAt' | 'read'
 >;
 export type Inbox = Typed<Has<N['Inbox'], 'unreadCount'>, { items: NotificationItem[] }>;
+
+export type FollowUp = Has<
+  C['FollowUp'],
+  'claimId' | 'claimNumber' | 'requestId' | 'question' | 'requestedByName' | 'status' | 'requestedAt'
+>;
+
+export type PolicyDetail = Typed<
+  Has<
+    C['PolicyDetail'],
+    | 'id'
+    | 'policyNumber'
+    | 'lineOfBusiness'
+    | 'marketCode'
+    | 'currency'
+    | 'sumInsured'
+    | 'effectiveFrom'
+    | 'effectiveTo'
+  >,
+  { claims: ClaimListItem[] }
+>;

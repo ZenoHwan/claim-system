@@ -4,8 +4,10 @@ import {
   ClaimDetail,
   ClaimListItem,
   DocumentView,
+  FollowUp,
   PaymentMethod,
   Policy,
+  PolicyDetail,
   SubmitClaimRequest,
 } from '../api/types';
 
@@ -16,6 +18,13 @@ export class ClaimsApi {
 
   policies() {
     return this.http.get<Policy[]>('/api/policies');
+  }
+  policy(id: string) {
+    return this.http.get<PolicyDetail>(`/api/policies/${id}`);
+  }
+  /** Claimants get the questions waiting for their reply; staff get those they asked and the replies. */
+  followUps(staff: boolean) {
+    return this.http.get<FollowUp[]>(staff ? '/api/staff/claims/follow-ups' : '/api/claims/follow-ups');
   }
   submit(request: SubmitClaimRequest) {
     return this.http.post<ClaimDetail>('/api/claims', request);

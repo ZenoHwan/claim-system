@@ -180,6 +180,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/claims/follow-ups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["followUps"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/policies": {
         parameters: {
             query?: never;
@@ -188,6 +204,22 @@ export interface paths {
             cookie?: never;
         };
         get: operations["myPolicies"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/policies/{policyId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["policy"];
         put?: never;
         post?: never;
         delete?: never;
@@ -220,6 +252,22 @@ export interface paths {
             cookie?: never;
         };
         get: operations["download"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/claims/follow-ups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["followUps_1"];
         put?: never;
         post?: never;
         delete?: never;
@@ -432,6 +480,22 @@ export interface components {
             /** Format: date-time */
             updatedAt?: string;
         };
+        FollowUp: {
+            /** Format: uuid */
+            claimId?: string;
+            claimNumber?: string;
+            /** Format: uuid */
+            requestId?: string;
+            question?: string;
+            requestedByName?: string;
+            /** @enum {string} */
+            status?: "OPEN" | "ANSWERED";
+            /** Format: date-time */
+            requestedAt?: string;
+            responseText?: string;
+            /** Format: date-time */
+            answeredAt?: string;
+        };
         PolicyView: {
             /** Format: uuid */
             id?: string;
@@ -448,6 +512,21 @@ export interface components {
             /** Format: uuid */
             openClaimId?: string;
             openClaimNumber?: string;
+        };
+        PolicyDetail: {
+            /** Format: uuid */
+            id?: string;
+            policyNumber?: string;
+            /** @enum {string} */
+            lineOfBusiness?: "MOTOR" | "PROPERTY";
+            marketCode?: string;
+            currency?: string;
+            sumInsured?: number;
+            /** Format: date */
+            effectiveFrom?: string;
+            /** Format: date */
+            effectiveTo?: string;
+            claims?: components["schemas"]["ListItem"][];
         };
     };
     responses: never;
@@ -750,6 +829,26 @@ export interface operations {
             };
         };
     };
+    followUps: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["FollowUp"][];
+                };
+            };
+        };
+    };
     myPolicies: {
         parameters: {
             query?: never;
@@ -766,6 +865,28 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["PolicyView"][];
+                };
+            };
+        };
+    };
+    policy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                policyId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PolicyDetail"];
                 };
             };
         };
@@ -811,6 +932,26 @@ export interface operations {
                 };
                 content: {
                     "*/*": string;
+                };
+            };
+        };
+    };
+    followUps_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["FollowUp"][];
                 };
             };
         };

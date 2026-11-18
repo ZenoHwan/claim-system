@@ -22,7 +22,9 @@ import { ClaimsApi } from '../core/claims-api';
           <table mat-table [dataSource]="policies()">
             <ng-container matColumnDef="policyNumber">
               <th mat-header-cell *matHeaderCellDef>Policy no.</th>
-              <td mat-cell *matCellDef="let p">{{ p.policyNumber }}</td>
+              <td mat-cell *matCellDef="let p">
+                <a [routerLink]="['/claims/policies', p.id]">{{ p.policyNumber }}</a>
+              </td>
             </ng-container>
             <ng-container matColumnDef="line">
               <th mat-header-cell *matHeaderCellDef>Type</th>

@@ -1,12 +1,15 @@
 import { DatePipe } from '@angular/common';
-import { Component, OnDestroy, OnInit, inject } from '@angular/core';
-import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { Component, OnDestroy, OnInit, effect, inject, untracked } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { filter } from 'rxjs';
 import { MatBadgeModule } from '@angular/material/badge';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { NotificationItem } from '../api/types';
+import { FollowUps } from '../core/follow-ups';
 import { Notifications } from '../core/notifications';
 import { Session } from '../core/session';
 
@@ -33,6 +36,11 @@ import { Session } from '../core/session';
         <nav>
           <a matButton routerLink="/admin/queue" routerLinkActive="active">Queue</a>
           <a matButton routerLink="/admin/my-claims" routerLinkActive="active">My claims</a>
+          <a matButton routerLink="/admin/follow-ups" routerLinkActive="active">
+            <span [matBadge]="followUps.toDo()" [matBadgeHidden]="followUps.toDo() === 0" matBadgeOverlap="false"
+              >Follow-ups</span
+            >
+          </a>
           @if (session.isManager()) {
             <a matButton routerLink="/admin/dashboard" routerLinkActive="active">Dashboard</a>
           }
@@ -41,6 +49,11 @@ import { Session } from '../core/session';
         <nav>
           <a matButton routerLink="/claims" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">My claims</a>
           <a matButton routerLink="/claims/policies" routerLinkActive="active">My policies</a>
+          <a matButton routerLink="/claims/follow-ups" routerLinkActive="active">
+            <span [matBadge]="followUps.toDo()" [matBadgeHidden]="followUps.toDo() === 0" matBadgeOverlap="false"
+              >Follow-ups</span
+            >
+          </a>
         </nav>
       }
       <span class="spacer"></span>
@@ -120,7 +133,19 @@ import { Session } from '../core/session';
 export class Shell implements OnInit, OnDestroy {
   protected readonly session = inject(Session);
   protected readonly notifications = inject(Notifications);
+  protected readonly followUps = inject(FollowUps);
   private readonly router = inject(Router);
+
+  constructor() {
+    // The count changes when someone replies or asks (a live notification) or after the user acts (a navigation).
+    effect(() => {
+      this.notifications.lastPushed();
+      untracked(() => this.followUps.load());
+    });
+    this.router.events
+      .pipe(filter((event) => event instanceof NavigationEnd), takeUntilDestroyed())
+      .subscribe(() => this.followUps.load());
+  }
 
   ngOnInit() {
     this.notifications.connect();

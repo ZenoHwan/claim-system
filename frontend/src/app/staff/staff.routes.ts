@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { managerOnly } from '../core/http';
+import { FollowUpsPage } from '../shared/follow-ups-page';
 import { Shell } from '../shared/shell';
 import { Dashboard } from './dashboard';
 import { MyClaims, Queue } from './lists';
@@ -12,6 +13,7 @@ export default [
     children: [
       { path: 'queue', component: Queue, title: 'Queue - Claims Admin' },
       { path: 'my-claims', component: MyClaims, title: 'My claims - Claims Admin' },
+      { path: 'follow-ups', component: FollowUpsPage, title: 'Follow-ups - Claims Admin' },
       { path: 'claims/:id', component: Workbench, title: 'Claim - Claims Admin' },
       {
         path: 'dashboard',
