@@ -7,7 +7,7 @@ Defines how a claim is created against a policy and moved by claimants and staff
 ## ADDED Requirements
 
 ### Requirement: Claimant submits a claim against their own policy
-A claimant SHALL be able to submit a claim against a policy they hold, giving the incident date, a description, the claimed amount and the details specific to the policy's line of business. The claim SHALL take its line of business, market and currency from the policy and receive a unique claim number.
+A claimant SHALL be able to submit a claim against a policy they hold, giving the incident date, a description and the details specific to the policy's line of business, and optionally their own estimate of the loss. The claim SHALL take its line of business, market and currency from the policy and receive a unique claim number.
 
 #### Scenario: Motor claim submitted
 - **WHEN** a claimant submits a claim against their motor policy with vehicle registration, driver name, accident location and whether a third party was involved
@@ -16,6 +16,10 @@ A claimant SHALL be able to submit a claim against a policy they hold, giving th
 #### Scenario: Property claim submitted
 - **WHEN** a claimant submits a claim against their property policy with the property address and cause of loss
 - **THEN** the claim is created in status SUBMITTED with a claim number
+
+#### Scenario: No estimate given
+- **WHEN** a claimant submits a claim without an estimated amount
+- **THEN** the claim is created and shows no claimed amount
 
 #### Scenario: Policy belongs to someone else
 - **WHEN** a claimant submits a claim against a policy they do not hold
@@ -26,15 +30,38 @@ A claimant SHALL be able to submit a claim against a policy they hold, giving th
 - **THEN** the system rejects the submission with a validation error naming the incident date
 
 #### Scenario: Missing or invalid fields
-- **WHEN** the claimed amount is zero or negative, the incident date is in the future, or a required field is missing
+- **WHEN** an estimated amount is given but is zero or negative, the incident date is in the future, or a required field is missing
 - **THEN** the system rejects the submission with a validation error listing each invalid field
 
 ### Requirement: Initial reserve on submission
-The system SHALL record an initial reserve equal to the claimed amount when a claim is submitted, so that every open claim carries a liability figure.
+The system SHALL record an initial reserve when a claim is submitted, so that every open claim carries a liability figure. The reserve SHALL equal the claimant's estimate when one is given, and otherwise a configured share of the policy's sum insured for that line of business.
 
-#### Scenario: Reserve created with the claim
-- **WHEN** a claim for 8,500 is submitted
+#### Scenario: Reserve from the claimant's estimate
+- **WHEN** a claim with an estimate of 8,500 is submitted
 - **THEN** the claim's current reserve is 8,500
+
+#### Scenario: Default reserve when no estimate is given
+- **WHEN** a motor claim with no estimate is submitted against a policy with a sum insured of 80,000 and the motor default share is 10%
+- **THEN** the claim's current reserve is 8,000
+
+### Requirement: One open claim per policy
+The system SHALL refuse a new claim against a policy that already has a claim which is neither SETTLED nor REJECTED. The limit MUST hold under concurrent submissions. A claimant SHALL be able to see which of their policies already have a claim in progress.
+
+#### Scenario: Second claim while one is open
+- **WHEN** a claimant submits a claim against a policy that has an open claim at any stage, including APPROVED but not yet paid
+- **THEN** the system responds with 409 Conflict naming the open claim, and creates nothing
+
+#### Scenario: Claim again after closure
+- **WHEN** the earlier claim on the policy has been settled or rejected
+- **THEN** a new claim against that policy is accepted
+
+#### Scenario: Other policies are unaffected
+- **WHEN** a claimant with an open claim on one policy submits a claim against another of their policies
+- **THEN** the claim is accepted
+
+#### Scenario: Policy list shows the block
+- **WHEN** a claimant lists their policies
+- **THEN** each policy with a claim in progress carries that claim's number
 
 ### Requirement: Claimant tracks their claims
 A claimant SHALL be able to list their own claims and open any one of them to see its details, current status, and the dated history of status changes.

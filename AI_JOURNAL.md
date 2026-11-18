@@ -163,3 +163,47 @@ answer is "test-first, coarse-grained".
 - Staff actions return **200 with the whole updated claim**, not 201 or 204.
 
 **Why (for all of 16 and 17):** _TODO — go through each, keep or change_
+
+---
+
+## 18 Nov 2026 — Hands-on testing (me clicking through the app)
+
+This part is where I pushed back the most, after actually using what the AI built.
+
+### 18. Demo password
+
+**What I did:** Asked for all seeded accounts to use one simple password.
+**AI then:** Changed the seed, tests, README and the running database, and made re-seeding refresh the hash. Added a line in the README that the seed is demo data only.
+
+### 19. "Why does my password not work?"
+
+**Asked:** Officer account refused at the claimant login.
+**AI said:** Wrong door, working as designed. The server gives the same error for wrong password, unknown email and wrong door on purpose, so the form cannot be used to find out which accounts exist. Offered a friendlier hint.
+**What I did:** Accepted the explanation. _TODO: decide if I want the hint._
+
+### 20. Calendar on the date field
+
+**What I did:** Asked for a calendar dropdown.
+**AI first:** Added a button that opens the browser's built-in date picker (no new library). It did not work properly in my browser.
+**AI then:** Switched to the Angular Material datepicker, day/month/year, future dates disabled.
+**Lesson:** The "lazy" native option was not good enough here. The AI only confirmed the button called the picker, not that a calendar appeared, and said so.
+
+### 21. Is "amount claimed" really necessary?
+
+**Asked:** In insurance, does the claimant need to state the amount?
+**AI said:** No. At first notification most people have no quote, and the figure that matters is the insurer's reserve. But our design used the claimed amount as the initial reserve, so a blank needs a stand-in or exposure goes blind again. Recommended: optional "estimated loss", with a default reserve when blank.
+**What I did:** Challenged the original design; accepted the fix.
+**AI then changed its own proposal:** it first said "a fixed default figure per line", then used a **percentage of the sum insured** (10% motor, 5% property) because a fixed number means nothing across currencies.
+**Why:** _TODO — and check I am happy with 10% / 5%_
+
+### 22. Refresh loses the form
+
+**What I did:** Reported that refreshing the New claim page sent me back to step 1.
+**AI then:** Saves the draft and the current step in sessionStorage, restores both on load, clears on submit or cancel. Attached files cannot be saved and have to be re-added; the page says so.
+
+### 23. One claim per policy at a time
+
+**What I did:** Told the AI a policy can only have one claim until that flow is done.
+**AI then:** Service check with a clear 409, plus a partial unique index so two submissions at once cannot both pass. The policy dropdown greys out a policy with a claim in progress.
+**AI's note:** In real practice one policy can have several open claims for separate incidents. It built my rule and recorded the alternative in the design (D10a).
+**Why:** _TODO — the panel may ask why I chose the stricter rule_

@@ -69,8 +69,17 @@ Permitted transitions and their guards live in the claim aggregate and are unit-
 - *Alternative: pessimistic row lock on pick-up.* Works, but holds a lock across the request and gives a worse error story.
 
 ### D10. Reserve as its own history
-Each reserve change is a new row; the newest is current. An initial reserve equal to the claimed amount is created at submission, revised at assessment, and released to zero on rejection or settlement. This is what makes exposure non-zero for unassessed claims.
+Each reserve change is a new row; the newest is current (and copied onto the claim for cheap reads). An initial reserve is created at submission, revised at assessment, and released to zero on rejection or settlement. This is what makes exposure non-zero for unassessed claims.
+
+The claimed amount is an optional estimate, because at first notification a claimant often has no quote. When it is given it becomes the initial reserve; when it is not, the reserve defaults to a share of the policy's sum insured (10% motor, 5% property, configurable). A percentage is used so the default is meaningful in every market's currency.
+- *Alternative: require the claimed amount.* The original design; rejected after hands-on testing as unrealistic for first notification.
+- *Alternative: a fixed default figure per line.* Meaningless across currencies (5,000 MYR is not 5,000 IDR).
+- *Alternative: average claim cost by market and peril.* What insurers actually use; needs data this project does not have. Future work.
 - *Alternative: a reserve column on the claim.* Loses the history a claims manager would ask for.
+
+### D10a. One open claim per policy
+A policy may carry one claim at a time; another can be raised once it is settled or rejected. The service checks first to give a clear 409 naming the open claim, and a partial unique index on `claim (policy_id) WHERE status NOT IN ('SETTLED','REJECTED')` makes it hold under simultaneous submissions. The policy list reports the open claim so the form can disable that policy.
+- *Alternative: allow several open claims per policy.* Closer to real practice, where separate incidents on one policy are separate claims; the candidate chose the stricter rule. Relaxing it is dropping one index and one check.
 
 ### D11. Thin payment
 Approval creates one `payment` row in `REQUESTED`. Recording method and reference moves it to `PAID` and the claim to `SETTLED`. A unique constraint on `payment.claim_id` is the double-payment guard. No bank account details are stored.

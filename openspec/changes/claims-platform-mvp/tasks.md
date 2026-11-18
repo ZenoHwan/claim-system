@@ -90,6 +90,13 @@ Working rules for every group: write the failing test first for anything with lo
 - [x] 11.3 Run `./mvnw verify` for all modules; verify every test passes
 - [ ] 11.4 Review `AI_JOURNAL.md` and fill in every outstanding "Why"; verify no placeholder remains
 
+## 12. Changes after first hands-on test
+
+- [x] 12.1 Test-first: the claimed amount is optional and a missing one gives a default reserve as a share of the sum insured; verify the estimate and default-reserve scenarios pass
+- [x] 12.2 Test-first: only one open claim per policy, enforced in the service and by a partial unique index, and shown on the policy list; verify the one-open-claim scenarios pass
+- [x] 12.3 New-claim form: Material calendar on the incident date, optional estimate, policies with a claim in progress disabled; verify each in the browser
+- [x] 12.4 New-claim form keeps its values and step across a page refresh; verify by refreshing on step 2 and landing back on step 2 with the values
+
 ## Workflow follow-up
 
 - Archive the change once the walkthrough has been given.

@@ -6,7 +6,7 @@ Solid states are built. `WITHDRAWN` and `PENDING_APPROVAL` are designed only.
 
 ```mermaid
 stateDiagram-v2
-    [*] --> SUBMITTED : claimant submits\n(initial reserve = claimed amount)
+    [*] --> SUBMITTED : claimant submits\n(initial reserve = estimate or default)
 
     SUBMITTED --> UNDER_REVIEW : officer picks up
     UNDER_REVIEW --> INFO_REQUESTED : officer requests information
@@ -36,7 +36,7 @@ stateDiagram-v2
 
 | Transition | Who | Guard | Event published |
 |---|---|---|---|
-| submit | Claimant | Policy belongs to claimant; incident date inside policy period | `ClaimSubmitted` |
+| submit | Claimant | Policy belongs to claimant; incident date inside policy period; policy has no other open claim | `ClaimSubmitted` |
 | pick up | Officer | Claim unassigned; officer's market matches; version matches | `ClaimAssigned` |
 | request information | Assigned officer | No other request open | `InformationRequested` |
 | respond | Claimant who owns the claim | Request is open | `InformationProvided` |

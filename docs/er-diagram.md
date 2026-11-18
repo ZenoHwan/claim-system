@@ -60,7 +60,7 @@ erDiagram
         varchar status
         date incident_date
         text incident_description
-        numeric claimed_amount
+        numeric claimed_amount "optional estimate from the claimant"
         numeric current_reserve "copy of the newest reserve row"
         bigint version "optimistic lock"
         timestamptz submitted_at
@@ -156,6 +156,9 @@ erDiagram
         timestamptz published_at "null until relayed"
     }
 ```
+
+A partial unique index on `claim (policy_id)` for claims that are not `SETTLED` or `REJECTED`
+allows only one open claim per policy.
 
 `outbox_event` has no foreign keys on purpose: it is written in the same
 transaction as the claim change and read only by the relay.
