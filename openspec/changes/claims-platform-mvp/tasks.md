@@ -55,23 +55,23 @@ Working rules for every group: write the failing test first for anything with lo
 
 ## 8. reporting-service
 
-- [ ] 8.1 Scaffold the app with the `claim_summary` and `processed_event` migrations and token validation; verify it starts against compose and rejects an unauthenticated request with 401
-- [ ] 8.2 Test-first: consuming each event type upserts `claim_summary`; verify with Testcontainers that a full lifecycle leaves the expected row
-- [ ] 8.3 Test-first: a duplicate event and an older-version event change nothing; verify the replay scenarios in claims-reporting and claim-events pass
-- [ ] 8.4 Configure retry with backoff and the dead-letter topic; verify by test that an unprocessable message lands on `claim-events.dlt` and the next message is processed
-- [ ] 8.5 Test-first: workload query (per officer by status, unassigned, ageing buckets); verify the workload scenarios pass
-- [ ] 8.6 Test-first: performance query (decided in 30 days, average days to decision, empty case); verify the performance scenarios pass
-- [ ] 8.7 Test-first: exposure query by market and line with the as-of time, manager-only; verify the exposure scenarios pass and an officer gets 403
-- [ ] 8.8 Publish the OpenAPI document for reporting-service; verify `/v3/api-docs` lists the three views
+- [x] 8.1 Scaffold the app with the `claim_summary` and `processed_event` migrations and token validation; verify it starts against compose and rejects an unauthenticated request with 401
+- [x] 8.2 Test-first: consuming each event type upserts `claim_summary`; verify with Testcontainers that a full lifecycle leaves the expected row
+- [x] 8.3 Test-first: a duplicate event and an older-version event change nothing; verify the replay scenarios in claims-reporting and claim-events pass
+- [x] 8.4 Configure retry with backoff and the dead-letter topic; verify by test that an unprocessable message lands on `claim-events.dlt` and the next message is processed
+- [x] 8.5 Test-first: workload query (per officer by status, unassigned, ageing buckets); verify the workload scenarios pass
+- [x] 8.6 Test-first: performance query (decided in 30 days, average days to decision, empty case); verify the performance scenarios pass
+- [x] 8.7 Test-first: exposure query by market and line with the as-of time, manager-only; verify the exposure scenarios pass and an officer gets 403
+- [x] 8.8 Publish the OpenAPI document for reporting-service; verify `/v3/api-docs` lists the three views
 
 ## 9. notification-service
 
-- [ ] 9.1 Scaffold the app with the `notification` and `processed_event` migrations and token validation; verify it starts and rejects an unauthenticated request with 401
-- [ ] 9.2 Test-first: map events to recipients and messages (claimant on pick-up, information requested, approved, rejected, settled; assigned staff on response; none on submission); verify the notification scenarios pass
-- [ ] 9.3 Test-first: a duplicate event creates one notification; verify the one-per-event scenario passes
-- [ ] 9.4 Test-first: inbox list, unread count and mark-as-read scoped to the signed-in user; verify the inbox scenarios pass
-- [ ] 9.5 Add the SSE stream and the logged email stub; verify by test that a subscribed user receives a notification created after subscribing and that a log line records the stubbed email
-- [ ] 9.6 Publish the OpenAPI document for notification-service; verify `/v3/api-docs` lists the inbox and stream endpoints
+- [x] 9.1 Scaffold the app with the `notification` and `processed_event` migrations and token validation; verify it starts and rejects an unauthenticated request with 401
+- [x] 9.2 Test-first: map events to recipients and messages (claimant on pick-up, information requested, approved, rejected, settled; assigned staff on response; none on submission); verify the notification scenarios pass
+- [x] 9.3 Test-first: a duplicate event creates one notification; verify the one-per-event scenario passes
+- [x] 9.4 Test-first: inbox list, unread count and mark-as-read scoped to the signed-in user; verify the inbox scenarios pass
+- [x] 9.5 Add the SSE stream and the logged email stub; verify by test that a subscribed user receives a notification created after subscribing and that a log line records the stubbed email
+- [x] 9.6 Publish the OpenAPI document for notification-service; verify `/v3/api-docs` lists the inbox and stream endpoints
 
 ## 10. Angular application
 
