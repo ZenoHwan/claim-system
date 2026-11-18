@@ -51,6 +51,65 @@ class ClaimLifecycleIntegrationTest extends IntegrationTest {
         }
 
         @Test
+        void freeTextIsTrimmedAndThePlateIsWrittenTheStandardWay() throws Exception {
+            Map<String, Object> claim = motorClaim(freshPolicy(AISHA_MOTOR), "100.00");
+            claim.put("motor", Map.of(
+                    "vehicleRegistration", "  wxy1234 ",
+                    "driverName", "  Aisha   binti Ahmad ",
+                    "accidentLocation", Map.of(
+                            "addressLine1", " Jalan Ampang ", "addressLine2", "  ", "postalCode", " 50450 "),
+                    "thirdPartyInvolved", false));
+
+            postJson("/api/claims", bearer(AISHA), claim)
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.motor.vehicleRegistration").value("WXY 1234"))
+                    .andExpect(jsonPath("$.motor.driverName").value("Aisha binti Ahmad"))
+                    .andExpect(jsonPath("$.motor.accidentLocation.addressLine1").value("Jalan Ampang"))
+                    .andExpect(jsonPath("$.motor.accidentLocation.addressLine2").doesNotExist())
+                    .andExpect(jsonPath("$.motor.accidentLocation.postalCode").value("50450"));
+        }
+
+        @Test
+        void malformedDetailsAreAllListed() throws Exception {
+            Map<String, Object> claim = motorClaim(freshPolicy(AISHA_MOTOR), "10.555");
+            claim.put("incidentDescription", "sadasd");
+            claim.put("motor", Map.of(
+                    "vehicleRegistration", "12-AB!",
+                    "driverName", "J0hn 123",
+                    "accidentLocation", Map.of("addressLine1", "<script>", "addressLine2", "@@@", "postalCode", "50450"),
+                    "thirdPartyInvolved", false));
+
+            postJson("/api/claims", bearer(AISHA), claim)
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.errors[?(@.field=='claimedAmount')]").exists())
+                    .andExpect(jsonPath("$.errors[?(@.field=='incidentDescription')]").exists())
+                    .andExpect(jsonPath("$.errors[?(@.field=='motor.vehicleRegistration')]").exists())
+                    .andExpect(jsonPath("$.errors[?(@.field=='motor.driverName')]").exists())
+                    .andExpect(jsonPath("$.errors[?(@.field=='motor.accidentLocation.addressLine1')]").exists())
+                    .andExpect(jsonPath("$.errors[?(@.field=='motor.accidentLocation.addressLine2')]").exists());
+        }
+
+        @Test
+        void thePostalCodeMustSuitThePolicysMarket() throws Exception {
+            // Malaysia uses five digits, Singapore six
+            Map<String, Object> malaysian = motorClaim(freshPolicy(AISHA_MOTOR), "100.00");
+            malaysian.put("motor", Map.of(
+                    "vehicleRegistration", "WXY 1234",
+                    "driverName", "Aisha Rahman",
+                    "accidentLocation", Map.of("addressLine1", "Jalan Ampang", "postalCode", "504501"),
+                    "thirdPartyInvolved", false));
+            postJson("/api/claims", bearer(AISHA), malaysian)
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.errors[0].field").value("motor.accidentLocation.postalCode"));
+
+            postJson("/api/claims", bearer(SITI_SG), singaporeMotorClaim(freshPolicy(SITI_SG_MOTOR), "50450"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.errors[0].field").value("motor.accidentLocation.postalCode"));
+            postJson("/api/claims", bearer(SITI_SG), singaporeMotorClaim(freshPolicy(SITI_SG_MOTOR), "018956"))
+                    .andExpect(status().isCreated());
+        }
+
+        @Test
         void anAddressNeedsAFirstLineAndAFiveOrSixDigitPostalCode() throws Exception {
             Map<String, Object> claim = motorClaim(freshPolicy(AISHA_MOTOR), "100.00");
             claim.put("motor", Map.of(
@@ -208,7 +267,7 @@ class ClaimLifecycleIntegrationTest extends IntegrationTest {
             String later = submitMotorClaim("150.00");
             String taken = submitMotorClaim("200.00");
             pickUp(OFFICER_2, taken);
-            String singapore = submit(SITI_SG, motorClaim(freshPolicy(SITI_SG_MOTOR), "300.00"));
+            String singapore = submit(SITI_SG, singaporeMotorClaim(freshPolicy(SITI_SG_MOTOR), "018956"));
 
             JsonNode queue = body(getAs("/api/staff/claims/unassigned", bearer(OFFICER_1)).andExpect(status().isOk()));
             List<String> ids = ids(queue);

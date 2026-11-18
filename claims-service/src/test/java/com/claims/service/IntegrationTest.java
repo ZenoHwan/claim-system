@@ -126,6 +126,16 @@ public abstract class IntegrationTest {
         return claim;
     }
 
+    protected Map<String, Object> singaporeMotorClaim(String policyId, String postalCode) {
+        Map<String, Object> claim = motorClaim(policyId, "300.00");
+        claim.put("motor", Map.of(
+                "vehicleRegistration", "SBA 1234 A",
+                "driverName", "Siti Nur",
+                "accidentLocation", Map.of("addressLine1", "1 Orchard Road", "postalCode", postalCode),
+                "thirdPartyInvolved", false));
+        return claim;
+    }
+
     protected Map<String, Object> propertyClaim(String policyId, String amount) {
         Map<String, Object> claim = new HashMap<>();
         claim.put("policyId", policyId);

@@ -28,6 +28,9 @@ class ClaimService {
 
     record DecisionRequest(@jakarta.validation.constraints.NotNull Decision.Outcome outcome, BigDecimal approvedAmount, String reason) {}
 
+    /** Malaysian postcodes have five digits, Singaporean six. A market not listed here is not checked. */
+    private static final Map<String, Integer> POSTAL_CODE_DIGITS = Map.of("MY", 5, "SG", 6);
+
     private final ClaimAccess access;
     private final ClaimChanges changes;
     private final ClaimRepository claims;
@@ -80,6 +83,13 @@ class ClaimService {
         }
         if (!motor && request.property() == null) {
             throw ApiException.invalid("property", "Property details are required for a property policy");
+        }
+        String postalCode = motor ? request.motor().accidentLocation().postalCode() : request.property().propertyAddress().postalCode();
+        Integer digits = POSTAL_CODE_DIGITS.get(policy.getMarketCode());
+        if (digits != null && postalCode.length() != digits) {
+            throw ApiException.invalid(
+                    motor ? "motor.accidentLocation.postalCode" : "property.propertyAddress.postalCode",
+                    "Postal code must be " + digits + " digits for a policy in " + policy.getMarketCode());
         }
 
         Instant now = Instant.now();
