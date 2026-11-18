@@ -1,0 +1,20 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: reporting-service
+  datasource:
+    url: jdbc:postgresql://localhost:5433/reporting_db
+    username: claims
+    password: claims
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: reporting-service
+      auto-offset-reset: earliest # a new read model starts from the first event ever published
+
+claims:
+  jwt:
+    # Shared signing key, dev default only. Supply CLAIMS_JWT_SECRET anywhere that matters.
+    secret: ${CLAIMS_JWT_SECRET:dev-only-secret-change-me-0123456789abcdef}
