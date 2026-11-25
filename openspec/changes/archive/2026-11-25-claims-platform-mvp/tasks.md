@@ -88,7 +88,7 @@ Working rules for every group: write the failing test first for anything with lo
 - [x] 11.1 From a clean checkout, follow the README to start everything and walk one motor and one property claim through the full lifecycle with two browser sessions; verify notifications arrive live and exposure moves at each step
 - [x] 11.2 Stop Kafka, submit a claim, restart Kafka; verify the claim was accepted and the dashboard and notifications catch up
 - [x] 11.3 Run `./mvnw verify` for all modules; verify every test passes
-- [ ] 11.4 Review `AI_JOURNAL.md` and fill in every outstanding "Why"; verify no placeholder remains
+- [x] 11.4 Review `AI_JOURNAL.md` and fill in every outstanding "Why"; verify no placeholder remains
 
 ## 12. Changes after first hands-on test
 

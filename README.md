@@ -4,7 +4,7 @@ Motor and property claims platform: claimants report and track claims, staff
 pick them up and take them to settlement or rejection, managers see workload
 and outstanding exposure.
 
-- Design decisions: [`openspec/changes/claims-platform-mvp/design.md`](openspec/changes/claims-platform-mvp/design.md)
+- Design decisions: [`openspec/changes/archive/2026-11-25-claims-platform-mvp/design.md`](openspec/changes/archive/2026-11-25-claims-platform-mvp/design.md)
 - Diagrams: [`docs/`](docs)
 - How the AI was directed: [`AI_JOURNAL.md`](AI_JOURNAL.md)
 - Trade-offs and next steps: [why not X?](#trade-offs-why-not-x) and [what I would do with more time](#what-i-would-do-with-more-time)
@@ -149,7 +149,7 @@ an API gateway, an identity provider. Known shortcuts are marked in the code wit
 
 Every choice below has an obvious alternative. For each one: what was chosen, why the alternative
 was not, what the choice costs, and what would change it. The decision record is in
-[`design.md`](openspec/changes/claims-platform-mvp/design.md).
+[`design.md`](openspec/changes/archive/2026-11-25-claims-platform-mvp/design.md).
 
 ### Three services, not one
 

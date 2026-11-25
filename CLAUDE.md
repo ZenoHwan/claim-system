@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Motor and property claims platform: a multi-module Maven build (Java 21, Spring Boot 4, Jackson 3 `tools.jackson`) with three services, a shared events module, and an Angular 22 frontend. The design record is `openspec/changes/claims-platform-mvp/design.md` (decisions D1–D21). The README has the run instructions, the trade-offs and the seeded accounts.
+Motor and property claims platform: a multi-module Maven build (Java 21, Spring Boot 4, Jackson 3 `tools.jackson`) with three services, a shared events module, and an Angular 22 frontend. The design record is `openspec/changes/archive/2026-11-25-claims-platform-mvp/design.md` (decisions D1–D21); the current requirements are the main specs in `openspec/specs/`. The README has the run instructions, the trade-offs and the seeded accounts.
 
 ## Commands
 
