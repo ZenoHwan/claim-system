@@ -357,7 +357,7 @@ In rough order of value:
 |---|---|---|
 | `claim-events` | 10 | JSON round trip of every event type, unknown fields ignored |
 | `claims-service` | 105 | sign-in, roles, every state transition, concurrency, field validation and clean-up, documents, payment, follow-ups, the cached lists and queue (including Redis down), policy detail, outbox relay incl. a broker outage |
-| `reporting-service` | 27 | projection, duplicate and stale events, dead-lettering, the three reports and their cache (including Redis down) |
+| `reporting-service` | 28 | projection, duplicate and stale events, dead-lettering, the three reports (incl. what each officer decided and settled today) and their cache (including Redis down) |
 | `notification-service` | 27 | event-to-notification rules, inbox, mark all read, live stream across instances (including Redis down), duplicate delivery |
 
 | `frontend` (Playwright, end to end) | 15 | both sign-in doors, route guards, password toggle, policy list and detail, every claim form rule, draft restore, a motor claim from submission through a question and reply to settlement, a property claim rejected with a reason, live badges and bell |

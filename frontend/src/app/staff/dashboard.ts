@@ -121,6 +121,36 @@ const OPEN_STATUSES = ['SUBMITTED', 'UNDER_REVIEW', 'INFO_REQUESTED', 'ASSESSED'
               </table>
             </mat-card-content>
           </mat-card>
+
+          <mat-card appearance="outlined">
+            <mat-card-header><mat-card-title>Done today</mat-card-title></mat-card-header>
+            <mat-card-content class="table-wrap">
+              @if (!performance()?.today?.length) {
+                <p class="muted">Nothing decided or settled yet today.</p>
+              } @else {
+                <table class="plain">
+                  <thead>
+                    <tr>
+                      <th>Officer</th>
+                      <th class="num">Approved</th>
+                      <th class="num">Rejected</th>
+                      <th class="num">Settled</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (officer of performance()!.today; track officer.officerId) {
+                      <tr>
+                        <td>{{ officer.officerName }}</td>
+                        <td class="num">{{ officer.approved }}</td>
+                        <td class="num">{{ officer.rejected }}</td>
+                        <td class="num">{{ officer.settled }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              }
+            </mat-card-content>
+          </mat-card>
         </div>
       }
 

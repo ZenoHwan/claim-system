@@ -3,6 +3,8 @@ package com.claims.reporting;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -25,7 +27,13 @@ class ReportQueries {
 
     record Ageing(long days0to2, long days3to7, long days8plus) {}
 
-    record Performance(Instant asOf, String market, long decidedLast30Days, Double averageDaysToDecision) {}
+    record Performance(Instant asOf, String market, long decidedLast30Days, Double averageDaysToDecision, List<OfficerToday> today) {}
+
+    /** What one officer closed out today: decisions (an approved claim stays approved once settled) and settlements. */
+    record OfficerToday(UUID officerId, String officerName, long approved, long rejected, long settled) {}
+
+    // ponytail: both live markets (MY, SG) are UTC+8; map market to zone when one outside UTC+8 is added
+    private static final ZoneId MARKET_ZONE = ZoneId.of("Asia/Kuala_Lumpur");
 
     record Exposure(Instant asOf, List<ExposureRow> rows) {}
 
@@ -88,7 +96,24 @@ class ReportQueries {
                 """)
                 .param("market", market)
                 .query().singleRow();
-        return new Performance(asOf(), market, (long) row.get("decided"), (Double) row.get("avg_days"));
+        Timestamp startOfDay = Timestamp.from(LocalDate.now(MARKET_ZONE).atStartOfDay(MARKET_ZONE).toInstant());
+        List<OfficerToday> today = jdbc.sql("""
+                SELECT officer_id, officer_name,
+                       count(*) FILTER (WHERE decided_at >= :start AND status <> 'REJECTED') AS approved,
+                       count(*) FILTER (WHERE decided_at >= :start AND status = 'REJECTED')  AS rejected,
+                       count(*) FILTER (WHERE settled_at >= :start)                          AS settled
+                FROM claim_summary
+                WHERE market_code = :market AND officer_id IS NOT NULL
+                  AND (decided_at >= :start OR settled_at >= :start)
+                GROUP BY officer_id, officer_name
+                ORDER BY officer_name
+                """)
+                .param("market", market)
+                .param("start", startOfDay)
+                .query((rs, n) -> new OfficerToday(rs.getObject("officer_id", UUID.class), rs.getString("officer_name"),
+                        rs.getLong("approved"), rs.getLong("rejected"), rs.getLong("settled")))
+                .list();
+        return new Performance(asOf(), market, (long) row.get("decided"), (Double) row.get("avg_days"), today);
     }
 
     /** Grouped by currency as well, so amounts in different currencies can never be added together. */

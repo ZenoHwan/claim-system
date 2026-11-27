@@ -85,6 +85,17 @@ export interface components {
             officers?: components["schemas"]["OfficerWorkload"][];
             ageing?: components["schemas"]["Ageing"];
         };
+        OfficerToday: {
+            /** Format: uuid */
+            officerId?: string;
+            officerName?: string;
+            /** Format: int64 */
+            approved?: number;
+            /** Format: int64 */
+            rejected?: number;
+            /** Format: int64 */
+            settled?: number;
+        };
         Performance: {
             /** Format: date-time */
             asOf?: string;
@@ -93,6 +104,7 @@ export interface components {
             decidedLast30Days?: number;
             /** Format: double */
             averageDaysToDecision?: number;
+            today?: components["schemas"]["OfficerToday"][];
         };
         Exposure: {
             /** Format: date-time */

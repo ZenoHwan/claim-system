@@ -116,7 +116,10 @@ export type Workload = Typed<
     ageing: Required<R['Ageing']>;
   }
 >;
-export type Performance = Has<R['Performance'], 'market' | 'decidedLast30Days'>;
+export type Performance = Typed<
+  Has<R['Performance'], 'market' | 'decidedLast30Days'>,
+  { today: Required<R['OfficerToday']>[] }
+>;
 export type Exposure = Typed<R['Exposure'], { rows: Required<R['ExposureRow']>[] }>;
 
 export type NotificationItem = Has<

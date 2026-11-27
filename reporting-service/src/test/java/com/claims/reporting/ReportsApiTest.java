@@ -160,6 +160,30 @@ class ReportsApiTest extends IntegrationTest {
         asManager("MY", "/api/reports/performance").andExpect(jsonPath("$.decidedLast30Days").value(0));
     }
 
+    @Test
+    void performanceBreaksDownWhatEachOfficerDecidedAndSettledToday() throws Exception {
+        var approvedAndSettled = TestClaim.motorMy(0);
+        var approved = TestClaim.motorMy(0);
+        var rejected = TestClaim.motorMy(0);
+        var decidedLastWeek = TestClaim.motorMy(10);
+        var stillOpen = TestClaim.motorMy(0);
+        apply(approvedAndSettled.submitted("100"), approvedAndSettled.assigned(TestClaim.TAN, "Tan"), approvedAndSettled.assessed("90"),
+                approvedAndSettled.approved(0), approvedAndSettled.settled());
+        apply(approved.submitted("100"), approved.assigned(TestClaim.TAN, "Tan"), approved.assessed("90"), approved.approved(0));
+        apply(rejected.submitted("100"), rejected.assigned(TestClaim.KUMAR, "Kumar"), rejected.assessed("90"), rejected.rejected(0));
+        apply(decidedLastWeek.submitted("100"), decidedLastWeek.assigned(TestClaim.KUMAR, "Kumar"), decidedLastWeek.assessed("90"),
+                decidedLastWeek.approved(3));
+        apply(stillOpen.submitted("100"), stillOpen.assigned(TestClaim.KUMAR, "Kumar"));
+
+        asManager("MY", "/api/reports/performance")
+                .andExpect(jsonPath("$.today", hasSize(2)))
+                .andExpect(jsonPath("$.today[?(@.officerName == 'Tan')].approved").value(2))
+                .andExpect(jsonPath("$.today[?(@.officerName == 'Tan')].settled").value(1))
+                .andExpect(jsonPath("$.today[?(@.officerName == 'Tan')].rejected").value(0))
+                .andExpect(jsonPath("$.today[?(@.officerName == 'Kumar')].rejected").value(1))
+                .andExpect(jsonPath("$.today[?(@.officerName == 'Kumar')].approved").value(0));
+    }
+
     // --- exposure ---
 
     @Test
